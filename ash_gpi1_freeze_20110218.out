@@ -1,0 +1,400 @@
+ASH Report For INVODS/invods
+
+DB Name         DB Id    Instance     Inst Num Release     RAC Host
+------------ ----------- ------------ -------- ----------- --- ------------
+INVODS        4227760515 invods              1 11.1.0.7.0  NO  db-invods-a-
+
+CPUs           SGA Size       Buffer Cache        Shared Pool    ASH Buffer Size
+---- ------------------ ------------------ ------------------ ------------------
+  24     71,360M (100%)    64,512M (90.4%)    16,733M (23.4%)              M (%)
+
+
+          Analysis Begin Time:   27-Apr-11 07:10:00
+            Analysis End Time:   27-Apr-11 07:55:00
+                 Elapsed Time:        45.0 (mins)
+            Begin Data Source:   DBA_HIST_ACTIVE_SESS_HISTORY
+                                 in AWR snapshot 62447
+              End Data Source:   DBA_HIST_ACTIVE_SESS_HISTORY
+                                 in AWR snapshot 62448
+                 Sample Count:      34,427
+      Average Active Sessions:      127.51
+  Avg. Active Session per CPU:        5.31
+                Report Target:   None specified
+
+Top User Events                DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                                                               Avg Active
+Event                               Event Class        % Event   Sessions
+----------------------------------- --------------- ---------- ----------
+log file sync                       Commit               32.03      40.84
+db file sequential read             User I/O             25.04      31.93
+CPU + Wait for CPU                  CPU                  21.40      27.29
+library cache: mutex X              Concurrency           3.37       4.30
+buffer busy waits                   Concurrency           2.81       3.58
+          -------------------------------------------------------------
+
+Top Background Events          DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top Event P1/P2/P3 Values      DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+Event                          % Event  P1 Value, P2 Value, P3 Value % Activity
+------------------------------ ------- ----------------------------- ----------
+Parameter 1                Parameter 2                Parameter 3
+-------------------------- -------------------------- --------------------------
+log file sync                    32.03                "2142","0","0"       0.41
+buffer#                    NOT DEFINED                NOT DEFINED
+
+db file sequential read          25.05            "168","296665","1"       0.01
+file#                      block#                     blocks
+
+library cache: mutex X            3.37 "2185244935","11012296146944"       0.76
+idn                        value                      where
+
+buffer busy waits                 2.81           "509","29545","617"       0.10
+file#                      block#                     class#
+
+latch: session allocation         2.58         "1610653640","10","0"       2.58
+address                    number                     tries
+
+          -------------------------------------------------------------
+
+Top Service/Module             DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+Service        Module                   % Activity Action               % Action
+-------------- ------------------------ ---------- ------------------ ----------
+SYS$USERS      InventoryPlanningComputa      24.34 UNNAMED                 24.34
+               Puker                         22.85 UNNAMED                 22.85
+               invods-build-worker           14.47 UNNAMED                 14.47
+               PlanWorker                    10.48 UNNAMED                 10.48
+               DWP SQL*Exec                   8.41 JR=96930080: yn Co       1.39
+                                                   JR=96932607: dimon       1.17
+          -------------------------------------------------------------
+
+Top Client IDs                 DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                                                              Avg Active
+Client ID                                          % Activity   Sessions
+-------------------------------------------------- ---------- ----------
+User            Program                           Service
+--------------- --------------------------------- --------------------
+eo@scosipsna-1009.vdc.amazon.com                         2.99       3.81
+LE101_USER                                        SYS$USERS
+
+eo@scosipsna-6007.iad6.amazon.com                        2.29       2.92
+LE101_USER                                        SYS$USERS
+
+eo@scosipsna-1005.vdc.amazon.com                         1.81       2.30
+LE101_USER                                        SYS$USERS
+
+eo@scosipsna-1008.vdc.amazon.com                         1.75       2.23
+LE101_USER                                        SYS$USERS
+
+eo@scosipsna-1011.vdc.amazon.com                         1.69       2.16
+LE101_USER                                        SYS$USERS
+
+          -------------------------------------------------------------
+
+Top SQL Command Types          DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+-> 'Distinct SQLIDs' is the count of the distinct number of SQLIDs
+      with the given SQL Command Type found over all the ASH samples
+      in the analysis period
+
+                                           Distinct            Avg Active
+SQL Command Type                             SQLIDs % Activity   Sessions
+---------------------------------------- ---------- ---------- ----------
+SELECT                                          338      37.94      48.38
+INSERT                                           64      13.50      17.21
+UPDATE                                           82       3.41       4.34
+DELETE                                           39       2.88       3.67
+PL/SQL EXECUTE                                  103       2.38       3.04
+          -------------------------------------------------------------
+
+Top Phases of Execution        DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                                          Avg Active
+Phase of Execution             % Activity   Sessions
+------------------------------ ---------- ----------
+SQL Execution                       60.57      77.23
+PLSQL Execution                      5.10       6.50
+          -------------------------------------------------------------
+
+Top SQL with Top Events       DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                                                        Sampled #
+                 SQL ID             Planhash        of Executions     % Activity
+----------------------- -------------------- -------------------- --------------
+Event                          % Event Top Row Source                    % RwSrc
+------------------------------ ------- --------------------------------- -------
+          1spp8dun0puqx           1173712034                 2391           6.95
+db file sequential read           6.64 TABLE ACCESS - BY LOCAL INDEX ROW    5.30
+select * from ( select planning_operation_type_code plan_type, warehouse_id fc,
+ til_at_plan_horizon_qty tip, creation_date, plan_period_days_num planning_perio
+d, rank() over (partition by asin_id, planning_operation_type_code order by cre
+ation_date desc) rank from target_inv_recommendation where asin_id = :1 and i
+
+          0gbkss2vptqhq            541662199                 1832           6.03
+CPU + Wait for CPU                4.39 SELECT STATEMENT                     0.88
+SELECT warehouse_id, sum (decode (inventory_condition_code, 'SELLABLE', on
+_hand_quantity - greatest(0, allocated_quantity) - greatest(0, unallocated_custo
+mer_demand), 0)) sellable, sum (decode (inventory_condition_code,
+ 'SELLABLE', 0, on_hand_quantity)) not_sellable FROM inventory_level_
+
+
+latch: cache buffers chains       1.14 INDEX - RANGE SCAN                   0.73
+
+          1nw8qamkhkdqf           3105226948                  453           5.79
+CPU + Wait for CPU                3.61 INDEX - FULL SCAN                    2.49
+SELECT warehouse_id,asin FROM inventory_level_by_owner_rt WHERE inventory_condi
+tion_code='SELLABLE' and on_hand_quantity>=0 and allocated_quantity>=0 and una
+llocated_customer_demand >=0 and ((nvl(inventory_owner_group_id, 1) in (1, 2) an
+d warehouse_id = 'ABE1') or (nvl(inventory_owner_group_id, 1) in (1, 2) and ware
+
+
+read by other session             1.17 INDEX - FULL SCAN                    0.24
+
+          8hr3qagcmw3gg           1234447273                  475           1.39
+enq: TX - index contention        0.47 ** Row Source Not Available **       0.47
+/* insert collection row com.amazon.ipc.planning.dao.plans.Plan.annotations */ i
+nsert into BOOKER.IP_PLAN_ANNOTATIONS (PLAN_ID, PLAN_ANNOTATION_TYPE, VALUE) val
+ues (:1 , :2 , :3 )
+
+          fdkz998bkn6t1           4162790482                  151           1.39
+db file sequential read           1.23 TABLE ACCESS - BY LOCAL INDEX ROW    1.08
+SELECT allocation_id ,arrival_smoothing_pad_days ,asin_id ,buying_period_ad
+justment ,buying_period_policy ,carton_qty ,created_by ,CASE WHEN target_inv
+_recommendation.creation_date < TO_DATE('0001/01/01','YYYY/MM/DD') OR target_inv
+_recommendation.creation_date > TO_DATE('9999/12/31','YYYY/MM/DD') THEN NULL ELS
+
+          -------------------------------------------------------------
+
+Top SQL with Top Row Sources   DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                                                        Sampled #
+                 SQL ID             PlanHash        of Executions     % Activity
+----------------------- -------------------- -------------------- --------------
+Row Source                               % RwSrc Top Event               % Event
+---------------------------------------- ------- ----------------------- -------
+          1spp8dun0puqx           1173712034                 2391           6.95
+TABLE ACCESS - BY LOCAL INDEX ROWID         5.45 db file sequential read    5.30
+select * from ( select planning_operation_type_code plan_type, warehouse_id fc,
+ til_at_plan_horizon_qty tip, creation_date, plan_period_days_num planning_perio
+d, rank() over (partition by asin_id, planning_operation_type_code order by cre
+ation_date desc) rank from target_inv_recommendation where asin_id = :1 and i
+
+
+INDEX - RANGE SCAN                          1.41 db file sequential read    1.34
+
+          0gbkss2vptqhq            541662199                 1832           6.03
+INDEX - RANGE SCAN                          1.05 latch: cache buffers ch    0.73
+SELECT warehouse_id, sum (decode (inventory_condition_code, 'SELLABLE', on
+_hand_quantity - greatest(0, allocated_quantity) - greatest(0, unallocated_custo
+mer_demand), 0)) sellable, sum (decode (inventory_condition_code,
+ 'SELLABLE', 0, on_hand_quantity)) not_sellable FROM inventory_level_
+
+          1nw8qamkhkdqf           3105226948                  453           5.79
+INDEX - FULL SCAN                           2.87 CPU + Wait for CPU         2.49
+SELECT warehouse_id,asin FROM inventory_level_by_owner_rt WHERE inventory_condi
+tion_code='SELLABLE' and on_hand_quantity>=0 and allocated_quantity>=0 and una
+llocated_customer_demand >=0 and ((nvl(inventory_owner_group_id, 1) in (1, 2) an
+d warehouse_id = 'ABE1') or (nvl(inventory_owner_group_id, 1) in (1, 2) and ware
+
+          8hr3qagcmw3gg           1234447273                  475           1.39
+** Row Source Not Available **              1.39 enq: TX - index content    0.47
+/* insert collection row com.amazon.ipc.planning.dao.plans.Plan.annotations */ i
+nsert into BOOKER.IP_PLAN_ANNOTATIONS (PLAN_ID, PLAN_ANNOTATION_TYPE, VALUE) val
+ues (:1 , :2 , :3 )
+
+          fdkz998bkn6t1           4162790482                  151           1.39
+TABLE ACCESS - BY LOCAL INDEX ROWID         1.14 db file sequential read    1.08
+SELECT allocation_id ,arrival_smoothing_pad_days ,asin_id ,buying_period_ad
+justment ,buying_period_policy ,carton_qty ,created_by ,CASE WHEN target_inv
+_recommendation.creation_date < TO_DATE('0001/01/01','YYYY/MM/DD') OR target_inv
+_recommendation.creation_date > TO_DATE('9999/12/31','YYYY/MM/DD') THEN NULL ELS
+
+          -------------------------------------------------------------
+
+Top SQL using literals         DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+-> FORCE_MATCHING_SIGNATURE is used to identify SQL statements that are
+      identical except for their use of literals.
+-> Please refer to the Oracle Database Reference to understand how
+      the FORCE_MATCHING_SIGNATURE is derived.
+
+                                     # of Sampled
+ FORCE_MATCHING_SIGNATURE % Activity SQL Versions
+------------------------- ---------- ------------
+Example SQL 1
+--------------------
+Example SQL 2
+--------------------
+      2360188059829823881       7.24            5
+1spp8dun0puqx
+select * from ( select planning_operation_type_code plan_type, warehouse_id fc,
+ til_at_plan_horizon_qty tip, creation_date, plan_period_days_num planning_perio
+d, rank() over (partition by asin_id, planning_operation_type_code order by cre
+ation_date desc) rank from target_inv_recommendation where asin_id = :1 and i
+
+a2f5xbjj3f2dr
+select * from ( select planning_operation_type_code plan_type, warehouse_id fc,
+ til_at_plan_horizon_qty tip, creation_date, plan_period_days_num planning_perio
+d, rank() over (partition by asin_id, planning_operation_type_code order by cre
+ation_date desc) rank from target_inv_recommendation where asin_id = :1 and in
+
+      6984991081732646746       6.87            8
+0gbkss2vptqhq
+SELECT warehouse_id, sum (decode (inventory_condition_code, 'SELLABLE', on
+_hand_quantity - greatest(0, allocated_quantity) - greatest(0, unallocated_custo
+mer_demand), 0)) sellable, sum (decode (inventory_condition_code,
+ 'SELLABLE', 0, on_hand_quantity)) not_sellable FROM inventory_level_
+
+fghs78n42txbr
+SELECT warehouse_id, sum (decode (inventory_condition_code, 'SELLABLE', on
+_hand_quantity - greatest(0, allocated_quantity) - greatest(0, unallocated_custo
+mer_demand), 0)) sellable, sum (decode (inventory_condition_code,
+ 'SELLABLE', 0, on_hand_quantity)) not_sellable FROM inventory_level_
+
+          -------------------------------------------------------------
+
+Top Parsing Module/Action      DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top PL/SQL Procedures          DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+-> 'PL/SQL entry subprogram' represents the application's top-level
+      entry-point(procedure, function, trigger, package initialization
+      or RPC call) into PL/SQL.
+-> 'PL/SQL current subprogram' is the pl/sql subprogram being executed
+      at the point of sampling . If the value is 'SQL', it represents
+      the percentage of time spent executing SQL for the particular
+      plsql entry subprogram
+
+PLSQL Entry Subprogram                                            % Activity
+----------------------------------------------------------------- ----------
+PLSQL Current Subprogram                                           % Current
+----------------------------------------------------------------- ----------
+SYS.DBMS_REFRESH.REFRESH                                                3.59
+   SQL                                                                  3.51
+BOOKER.SNAP_JOB.REFRESH                                                 2.11
+   SQL                                                                  2.08
+          -------------------------------------------------------------
+
+Top Java Workload              DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top Sessions                  DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top Blocking Sessions          DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+-> Blocking session activity percentages are calculated with respect to
+      waits on enqueues, latches and "buffer busy" only
+-> '% Activity' represents the load on the database caused by
+      a particular blocking session
+-> '# Samples Active' shows the number of ASH samples in which the
+      blocking session was found active.
+-> 'XIDs' shows the number of distinct transaction IDs sampled in ASH
+      when the blocking session was found active.
+
+ Blocking Sid (Inst) % Activity Event Caused                      % Event
+-------------------- ---------- ------------------------------ ----------
+User                 Program                          # Samples Active     XIDs
+-------------------- ------------------------------ ------------------ --------
+  3293,    1(     1)      33.32 log file sync                       32.03
+SYS                  oracle@db-invo...on.com (LGWR)     267/270 [ 99%]        0
+
+  3296,    1(     1)       1.52 latch: session allocation            1.52
+SYS                  oracle@db-invo...on.com (DBW1)      20/270 [  7%]        0
+
+          -------------------------------------------------------------
+
+Top Sessions running PQs      DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top DB Objects                 DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+-> With respect to Application, Cluster, User I/O and buffer busy waits only.
+
+      Object ID % Activity Event                             % Event
+--------------- ---------- ------------------------------ ----------
+Object Name (Type)                                    Tablespace
+----------------------------------------------------- -------------------------
+        6246350       5.13 db file sequential read              4.99
+LE101.TARGET_INV_RECOMMENDATION.TARGET_INV_REC_EXP_DT AGGREGATE
+
+        6269040       3.08 db file sequential read              2.93
+LE101.TARGET_INV_RECOMMENDATION.TARGET_INV_REC_EXP_DT AGGREGATE
+
+        6246343       1.92 db file sequential read              1.70
+LE101.REPLENISHMENT_PLAN.RP_EXECUTION_DATE_20110430 ( AGGREGATE
+
+          -------------------------------------------------------------
+
+Top DB Files                   DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top Latches                    DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+
+                                                                          Max Sa
+Latch                             % Latch   Blocking Sid(Inst) % Activity  Wait
+------------------------------ ---------- -------------------- ---------- ------
+       # Waits  # Sampled Wts  # Sampled Wts  # Sampled Wts  # Sampled Wts
+       Sampled         < 10ms   10ms - 100ms     100ms - 1s          > 1s
+-------------- -------------- -------------- -------------- --------------
+latch: session allocation            2.58   3296,    1(     1)       1.52   0.21
+           520              8            300            212              0
+
+latch: cache buffers chains          1.33          Held Shared       1.22   0.17
+           419             61            314             44              0
+
+          -------------------------------------------------------------
+
+Activity Over Time            DB/Inst: INVODS/invods  (Apr 27 07:10 to 07:55)
+-> Analysis period is divided into smaller time slots
+-> Top 3 events are reported in each of those slots
+-> 'Slot Count' shows the number of ASH samples in that slot
+-> 'Event Count' shows the number of ASH samples waiting for
+   that event in that slot
+-> '% Event' is 'Event Count' over all ASH samples in the analysis period
+
+                         Slot                                   Event
+Slot Time (Duration)    Count Event                             Count % Event
+-------------------- -------- ------------------------------ -------- -------
+07:10:00   (5.0 min)    2,032 CPU + Wait for CPU                  769    2.23
+                              db file sequential read             537    1.56
+                              log file sync                       441    1.28
+07:15:00   (5.0 min)    4,534 log file sync                     1,429    4.15
+                              db file sequential read           1,277    3.71
+                              CPU + Wait for CPU                  895    2.60
+07:20:00   (5.0 min)    3,644 log file sync                     1,131    3.29
+                              db file sequential read           1,098    3.19
+                              CPU + Wait for CPU                  848    2.46
+07:25:00   (5.0 min)    3,182 log file sync                       867    2.52
+                              db file sequential read             821    2.38
+                              CPU + Wait for CPU                  816    2.37
+07:30:00   (5.0 min)    4,067 log file sync                     1,208    3.51
+                              db file sequential read             981    2.85
+                              CPU + Wait for CPU                  886    2.57
+07:35:00   (5.0 min)    4,211 log file sync                     1,179    3.42
+                              db file sequential read             886    2.57
+                              CPU + Wait for CPU                  868    2.52
+07:40:00   (5.0 min)    4,311 log file sync                     1,465    4.26
+                              db file sequential read           1,039    3.02
+                              CPU + Wait for CPU                  929    2.70
+07:45:00   (5.0 min)    3,992 log file sync                     1,676    4.87
+                              db file sequential read             958    2.78
+                              CPU + Wait for CPU                  773    2.25
+07:50:00   (5.0 min)    4,454 log file sync                     1,631    4.74
+                              db file sequential read           1,027    2.98
+                              CPU + Wait for CPU                  797    2.32
+          -------------------------------------------------------------
+
+End of Report
