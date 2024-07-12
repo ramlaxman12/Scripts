@@ -1,0 +1,1492 @@
+
+ls --sort=size -l | head -10
+
+du -ah --max-depth=1 | sort -h
+
+
+for i in `ls -lrt *.trc| grep "Jun 27" | awk '{print $9}' `; do rm; done
+
+for i in `ls -lrt | grep "/orabackup1/cdp0765a/4201612965_DBLEVEL1*" | awk '{print $9}' `; do mv $i* .; done
+
+for i in `ps -ef|grep run_hotbackup_netapp.sh| awk '{print $2}' `; do kill -9 $i; done
+
+#################### wait_event queries #########################
+
+
+select a.sid,substr(b.username,1,10) username,substr(b.osuser,1,10) osuser,
+substr(b.program||b.module,1,15) program,substr(b.machine,1,22) machine,
+a.event,a.p1,b.sql_hash_value,b.sql_id,b.status
+from v$session_wait a,V$session b
+where b.sid=a.sid
+and a.event not in('SQL*Net message from client','SQL*Net message to client',
+'smon timer','pmon timer')
+and username is not null
+order by 6
+/
+
+
+
+col sql_id      format a13
+col obj_name    format a64 trunc
+col cpu         format 999,999
+col wait        format 999,999
+col io          format 999,999          head '*IO*'
+col tot         format 9,999,999        head 'TOT'
+col pctwait     format 999.9    head 'WAIT%'
+col pctio       format 999.9    head 'IO%'
+col pcttot      format 999.9    head 'TOT%'
+
+
+
+select
+         sql_id
+        ,obj_name
+        ,wait
+        ,100*ratio_to_report (wait) over () pctwait
+        ,io
+        ,100*ratio_to_report (io) over () pctio
+        ,tot
+        ,100*ratio_to_report (tot) over () pcttot
+from
+(
+select   ash.sql_id     sql_id
+        ,o.owner||'.'||object_name||decode(subobject_name,null,' ',' - '||subobject_name) obj_name
+        ,sum(decode(ash.session_state,'WAITING',1,0)) - sum(decode(ash.session_state,'WAITING',decode(en.wait_class, 'User I/O',1,0),0))    wait
+        ,sum(decode(ash.session_state,'WAITING', decode(en.wait_class, 'User I/O',1,0),0))    io
+        ,sum(decode(ash.session_state,'ON CPU',1,1))     tot
+from     v$active_session_history       ash
+        ,v$event_name                   en
+        ,dba_objects                    o
+where    current_obj#           is not NULL
+and      current_obj#           > 0
+and      ash.event#             = en.event#
+and      ash.current_obj#       = o.object_id
+and      sample_time            >= sysdate -1
+group by sql_id
+        ,o.owner||'.'||object_name||decode(subobject_name,null,' ',' - '||subobject_name)
+order by sum(decode(ash.session_state,'WAITING', decode(en.wait_class, 'User I/O',1,0),0)) desc
+)
+where rownum <=10
+;
+
+##########  Waiting queries ##############
+
+
+selectset lines 180                                                                                                                                                        
+set pages 1000                                                                                                                                                       
+col event format a50
+set linesize 200 pagesize 200
+col sql_id for a14                                                                                                                                  
+PROMPT --> Top 25 Wait Events    																																			   
+select * from (                                                                                                                                                      
+select inst_id,event,count(*) E_COUNT from gv$session_wait                                                                                                           
+where event <> 'SQL*Net message from client'                                                                                                                         
+group by inst_id,event order by 3 desc)                                                                                                                              
+where rownum < 26                                                                                                                                                    
+order by 3                                                                                                                                                           
+/                                                                                                                                                                    
+                                                                                                                                                                     
+                                      
+
+select event, total_waits,
+round(time_waited/100) "TIME(s)",
+average_wait*10 "AVG(ms)",
+TO_CHAR(SYSDATE, 'DD-MON-YYYY HH:MI:SS') time
+from v$system_event where time_waited > 100 and
+event not in ('rdbms ipc message','pmon timer','control
+file heartbeat','smon timer')
+order by time_waited;
+
+                             
+							 
+col sql format a35                                                                                                                                                   
+col username format a20                                                                                                                         
+col child format 999                                                                                                                                                 
+col secs format 9999                                                                                                                                                 
+col machine format a12                                                                                                                                               
+col event format a25                                                                                                                                                 
+col state format a10                                                                                                                                                 
+                                                                                                                                                                     
+select /*+ rule */ distinct                                                                                                                                          
+w.sid,s.username,substr(w.event,1,25) event,substr(s.machine,1,12) machine,substr(w.state,1,10) state,s.SQL_ID,--q.CHILD_NUMBER CHILD,                               
+substr(q.sql_text,1,33) "SQL",round(s.LAST_CALL_ET/60) "MINS", round(s.LAST_CALL_ET) "Sec"                                                                           
+from gv$session_wait w,gv$session s,gv$sql q where w.event like '%&event%'                                                                                           
+and w.sid=s.sid                                                                                                                                                      
+and s.SQL_HASH_VALUE=q.HASH_VALUE(+)                                                                                                                                 
+and s.status='ACTIVE'                                                                                                                                                
+and s.username is not null
+and substr(w.event,1,25) not like 'SQL*Net message from client%'                                                                                                       
+order by "MINS"                                                                                                                                                      
+/  
+
+
+############### responce time #######
+SET LINESIZE 200 PAGESIZE 50000
+COL BEGIN_TIME FORMAT A17
+COL END_TIME FORMAT A17
+COL INST_ID FORMAT 999
+COL "Min Response Time (msecs)" FORMAT 999,999,999,999.99
+COL "Avg Response Time (msecs)" FORMAT 999,999,999,999.99
+COL "Max Response Time (msecs)" FORMAT 999,999,999,999.99
+
+  SELECT TO_CHAR (BEGIN_TIME, 'DD-MON-YYYY HH24:MI') BEGIN_TIME,
+         TO_CHAR (END_TIME, 'DD-MON-YYYY HH24:MI') END_TIME,
+         INSTANCE_NUMBER INST_ID,
+         ROUND (MINVAL * 10, 2) "Min Response Time (msecs)",
+         ROUND (AVERAGE * 10, 2) "Avg Response Time (msecs)",
+         ROUND (MAXVAL * 10, 2) "Max Response Time (msecs)"
+    FROM DBA_HIST_SYSMETRIC_SUMMARY
+   WHERE 1 = 1 AND METRIC_NAME = 'SQL Service Response Time'
+ORDER BY BEGIN_TIME DESC, INSTANCE_NUMBER;
+
+
+
+SET LINESIZE 200 PAGESIZE 50000
+COL BEGIN_TIME FORMAT A17
+COL END_TIME FORMAT A17
+COL INST_ID FORMAT 999
+COL "Response Time (msecs)" FORMAT 999,999,999,999.99
+
+  SELECT TO_CHAR (BEGIN_TIME, 'DD-MON-YYYY HH24:MI') BEGIN_TIME,
+         TO_CHAR (END_TIME, 'DD-MON-YYYY HH24:MI') END_TIME,
+         INSTANCE_NUMBER INST_ID,
+         ROUND (VALUE * 10, 2) "Response Time (msecs)"
+    FROM DBA_HIST_SYSMETRIC_HISTORY
+   WHERE 1 = 1 AND METRIC_NAME = 'SQL Service Response Time'
+ORDER BY BEGIN_TIME DESC, INSTANCE_NUMBER;
+
+
+########################################
+
+   select    p.spid,
+   s.sid,
+   s.process cli_process,
+   s.status,t.disk_reads,
+   s.last_call_et/3600 last_call_et_Hrs,
+   s.action,
+   s.program,
+   lpad(t.sql_text,30)
+from
+   v$session s,
+   v$sqlarea t,
+   v$process p
+where
+   s.sql_address = t.address
+and
+   s.sql_hash_value = t.hash_value
+and
+   p.addr = s.paddr
+-- and
+--t.disk_reads > 10
+order by
+   t.disk_reads desc;
+   
+ 
+
+
+You can find TOP Elapsed time SQL in certain hours with below script.
+
+
+SELECT st.sql_text, sub.sql_id, sub.ELAPSED_TIME PER_EXEC_ELAPSED_TIME_MINUTES
+FROM DBA_HIST_SQLTEXT st,
+( SELECT t.sql_id,
+ROUND (
+SUM (t.elapsed_time_delta / 60000000)
+/ SUM (t.executions_delta))
+ELAPSED_TIME
+FROM dba_hist_sqlstat t, dba_hist_snapshot s, DBA_HIST_SQLTEXT st
+WHERE t.snap_id = s.snap_id
+AND t.dbid = s.dbid
+AND t.instance_number = s.instance_number
+AND t.executions_delta > 0
+AND s.BEGIN_INTERVAL_TIME >
+TO_DATE ('01/03/2023 13:30:00',
+'mm/dd/yyyy hh24:mi:ss')
+AND END_INTERVAL_TIME <
+TO_DATE ('01/03/2023 13:59:50',
+'mm/dd/yyyy hh24:mi:ss')
+GROUP BY t.sql_id
+ORDER BY 2 DESC) sub
+WHERE sub.sql_id = st.sql_id
+ORDER BY 3 DESC;
+
+
+
+You can find TOP CPU SQL for last 24 hours with following script.
+
+ 
+
+select * from (
+select ss.sql_text,
+    a.SQL_ID, 
+    sum(CPU_TIME_DELTA), 
+    sum(DISK_READS_DELTA),
+    count(*)
+from 
+    DBA_HIST_SQLSTAT a, dba_hist_snapshot s,v$sql ss
+where
+ s.snap_id = a.snap_id and a.sql_id=ss.sql_id
+ and s.begin_interval_time > sysdate -1
+    group by 
+    ss.sql_text,a.SQL_ID
+order by 
+    sum(CPU_TIME_DELTA) desc)
+where rownum<20;
+
+
+
+You can find TOP IO SQL for last 24 hours with following script.
+
+ 
+
+select * from 
+(
+SELECT /*+LEADING(x h) USE_NL(h)*/ 
+       h.sql_id
+,      SUM(10) ash_secs
+FROM   dba_hist_snapshot x
+,      dba_hist_active_sess_history h
+WHERE   x.begin_interval_time > sysdate -1
+AND    h.SNAP_id = X.SNAP_id
+AND    h.dbid = x.dbid
+AND    h.instance_number = x.instance_number
+AND    h.event in  ('db file sequential read','db file scattered read')
+GROUP BY h.sql_id
+ORDER BY ash_secs desc )
+where rownum<10;
+
+
+
+You can find TOP 10 SQL for last 1 hour with following script.
+
+ 
+
+select * from (
+select active_session_history.sql_id,
+ dba_users.username,
+ sqlarea.sql_text,
+sum(active_session_history.wait_time +
+active_session_history.time_waited) ttl_wait_time
+from v$active_session_history active_session_history,
+v$sqlarea sqlarea,
+ dba_users
+where 
+active_session_history.sample_time between sysdate -  1/12  and sysdate
+  and active_session_history.sql_id = sqlarea.sql_id
+and active_session_history.user_id = dba_users.user_id
+ group by active_session_history.sql_id,sqlarea.sql_text, dba_users.username
+ order by 4 desc )
+where rownum <11;
+
+
+ 
+
+You can check Top Oracle database wait events in Cache which is v$ queries with below script.
+
+select  wait_class,
+       sum(total_waits), sum(time_waited)
+    from gv$session_wait_class
+    where wait_class !='Idle'
+    group by wait_class
+    order by 3 desc;
+
+
+You can check Top Oracle database wait events from Active session history which is v$active_session_history queries with below script.
+
+select * from (
+select active_session_history.event,
+sum(active_session_history.wait_time +
+active_session_history.time_waited) ttl_wait_time
+from gv$active_session_history active_session_history
+where active_session_history.event is not null
+group by active_session_history.event
+order by 2 desc)
+where rownum <= 10;
+
+
+
+
+
+You can check Top Oracle database wait events at specific intervals. You should type date and SNAP_ID
+
+select snap_id,begin_interval_time,end_interval_time
+from dba_hist_snapshot
+where to_char(begin_interval_time,'DD-MON-YYYY')='03-JAN-2023'
+and EXTRACT(HOUR FROM begin_interval_time) between 13 and 14;
+
+select * from (
+select active_session_history.event,
+sum(active_session_history.wait_time +
+active_session_history.time_waited) ttl_wait_time
+from dba_hist_active_sess_history active_session_history
+where event is not null
+and SNAP_ID between 25123 and 25124
+group by active_session_history.event
+order by 2 desc)
+where rownum<10;
+
+
+
+To find any SQL’s SQL_ID and other SQL informations in the cache, use following SQL. Following query will find if related SQL exists in the cache,
+ if not exists it will not find.
+
+select * from gv$sql where sql_text like '%DEVECI%';
+ 
+
+To search any SQL historical in Oracle database you may use following SQL. Just change begin Interval time column and SQL_TEXT column.
+
+ 
+
+SELECT STAT.SQL_ID, SQL_TEXT, PLAN_HASH_VALUE, PARSING_SCHEMA_NAME, ELAPSED_TIME_DELTA, 
+STAT.SNAP_ID, SS.END_INTERVAL_TIME, EXECUTIONS_DELTA FROM DBA_HIST_SQLSTAT STAT, 
+DBA_HIST_SQLTEXT TXT, DBA_HIST_SNAPSHOT SS WHERE STAT.SQL_ID = TXT.SQL_ID AND
+STAT.DBID = TXT.DBID AND SS.DBID = STAT.DBID AND SS.INSTANCE_NUMBER = STAT.INSTANCE_NUMBER 
+AND STAT.SNAP_ID = SS.SNAP_ID AND
+SS.BEGIN_INTERVAL_TIME >= sysdate-31 AND
+UPPER(SQL_TEXT) LIKE '%DEVECI%' ORDER BY ELAPSED_TIME_DELTA DESC;
+
+
+
+ 
+
+You can find average Active session of database with following script.
+
+ 
+
+SELECT 'Load',
+CASE
+WHEN ( ( CAST (end_time.sample_time AS DATE)
+- CAST (start_time.sample_time AS DATE))
+* 24
+* 60
+* 60) = 0
+THEN
+0
+ELSE
+ROUND (
+( COUNT (ash.sample_id)
+/ ( ( CAST (end_time.sample_time AS DATE)
+- CAST (start_time.sample_time AS DATE))
+* 24
+* 60
+* 60)),
+2)
+END
+AS Average_Active_Session
+FROM (SELECT MIN (sample_time) sample_time
+FROM v$active_session_history ash
+WHERE sample_time BETWEEN SYSDATE - 1 / 1440 AND SYSDATE) start_time,
+(SELECT MAX (sample_time) sample_time
+FROM gv$active_session_history
+WHERE sample_time BETWEEN SYSDATE - 1 / 1440 AND SYSDATE) end_time,
+gv$active_session_history ash
+WHERE ash.sample_time BETWEEN start_time.sample_time
+AND end_time.sample_time
+GROUP BY end_time.sample_time, start_time.sample_time;
+
+
+
+
+To list all User Sessions not Background, use following scripts. This script will list you just only User type sessions and their detais.
+
+select * FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr(+)
+and s.TYPE ='USER' and s.username!='SYS';
+ 
+
+You can list how many Active and Inactive User sessions are in the Oracle database with following script.
+
+select count(*) FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr(+)
+and s.TYPE ='USER' and s.username!='SYS';
+
+
+You can list only Active User sessions without sys user with following script
+
+select count(*) FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr(+)
+and s.TYPE ='USER' and s.username!='SYS' and status='ACTIVE';
+ 
+
+You can list only Inactive User sessions without sys user with following script
+
+select count(*) FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr(+)
+and s.TYPE ='USER' and s.username!='SYS' and status='INACTIVE';
+
+
+
+You can list all user sessions which are ACTIVE state more than 600 Second with following script.
+
+select count(*) FROM gv$session s, gv$process p
+WHERE s.paddr = p.addr(+)
+and s.TYPE ='USER' and s.username!='SYS' and status='ACTIVE' and last_call_et > 600
+
+ 
+ 
+
+If you don’t use bind variables in the SQL queries then Oracle will know similar sqls differently like following.
+
+select * from customer where id=63;
+
+select * from customer where id=34;
+Above queries are almost same, just id variable is different. But Oracle optimizer will evaluate these SQLs like different SQL.
+
+If you use bind variable instead of literal like following then Oracle will evaluate as same SQL and will use same execution plan and won’t be hard parse in Oracle.
+
+ 
+
+variable SYS_B_0 number;
+exec :SYS_B_0:= 63
+
+select * from customer where id= :SYS_B_0;
+
+
+
+You can find out all queries which are not using bind variables with following script. You can see more queries with changing row nums of script.
+
+ 
+
+Select * 
+from (
+With subs as
+(SELECT /*+ materialize */
+m.sql_id, k.*, m.SQL_TEXT, m.SQL_FULLTEXT
+FROM (SELECT inst_id,
+parsing_schema_name AS user_name,
+module,
+plan_hash_value,
+COUNT(0) copies,
+SUM(executions) executions,
+SUM(round(sharable_mem / (1024 * 1024), 2)) sharable_mem_mb
+FROM gv$sqlarea
+WHERE executions < 5
+AND kept_versions = 0
+GROUP BY inst_id, parsing_schema_name, module, plan_hash_value
+HAVING COUNT(0) > 10
+ORDER BY COUNT(0) DESC) k
+LEFT JOIN gv$sqlarea m
+ON k.plan_hash_value = m.plan_hash_value
+WHERE k.plan_hash_value > 0)
+select distinct ki.inst_id,
+t.sql_id,
+ki.sql_text,
+t.plsql_procedure,
+ki.user_name,
+sum(ki.copies) copies,
+sum(ki.executions) executions,
+sum(ki.sharable_mem_mb) sharable_mem_mb
+from (select sql_id,
+program_id,
+program_line#,
+action,
+module,
+service,
+parsing_schema_name,
+round(buffer_gets / decode(executions, 0, 1, executions)) buffer_per_Exec,
+row_number() over(partition by sql_id order by program_id desc, program_line#) sira,
+decode(program_id,
+0,
+null,
+owner || '.' || object_name || '(' || program_line# || ')') plsql_procedure
+from gv$sql a, dba_objects b
+where a.program_id = b.object_id(+)) t,
+subs ki
+where ki.sql_id = t.sql_id
+and t.sira = 1
+group by ki.inst_id,
+t.sql_id,
+ki.sql_text,
+t.plsql_procedure,
+ki.user_name
+order by sum(ki.executions) desc
+)
+where rownum < 51;
+
+
+
+
+
+
+ 
+  
+ 
+
+ 
+
+You will find object detail of queries which is not using bind variables.
+
+ 
+
+With subs as
+(SELECT /*+ materialize */
+   m.sql_id, k.*, m.SQL_TEXT, m.SQL_FULLTEXT
+    FROM (SELECT inst_id,
+                 parsing_schema_name AS user_name,
+                 module,
+                 plan_hash_value,
+                 COUNT(0) copies,
+                 SUM(executions) executions,
+                 SUM(round(sharable_mem / (1024 * 1024), 2)) sharable_mem_mb
+            FROM gv$sqlarea
+           WHERE executions < 5
+             AND kept_versions = 0
+           GROUP BY inst_id, parsing_schema_name, module, plan_hash_value
+          HAVING COUNT(0) > 10
+           ORDER BY COUNT(0) DESC) k
+    LEFT JOIN gv$sqlarea m
+      ON k.plan_hash_value = m.plan_hash_value
+   WHERE k.plan_hash_value > 0)
+select *
+  from (select sql_id,
+               program_id,
+               program_line#,
+               action,
+               module,
+               service,
+               parsing_schema_name,
+               round(buffer_gets / decode(executions, 0, 1, executions)) buffer_per_Exec,
+               row_number() over(partition by sql_id order by program_id desc, program_line#) lines,
+               decode(program_id,
+                      0,
+                      null,
+                      owner || '.' || object_name || '(' || program_line# || ')') plsql_procedure
+          from gv$sql a, dba_objects b
+         where a.program_id = b.object_id(+)) t,
+       subs ki
+where ki.sql_id = t.sql_id
+   and lines = 1;
+
+
+
+#####################sql execution details
+
+select sum(count(*)) from DBA_HIST_ACTIVE_SESS_HISTORY where sql_id='SQL_ID' and sql_exec_id is not null group by sql_id,sql_exec_start,sql_exec_id;
+
+
+SELECT sql.sql_id
+,CAST(ss.begin_interval_time AS DATE) begin_interval
+,CAST(ss.end_interval_time  AS DATE) end_interval
+,sql.executions_delta
+,sql.executions_total
+FROM  dba_hist_sqlstat sql
+JOIN  dba_hist_snapshot ss
+ON  sql.snap_id = ss.snap_id
+WHERE  ss.end_interval_time >=
+AND    sql.sql_id = '&sql_id'
+ORDER BY 2
+/
+
+
+SELECT T.SQL_ID,
+         MIN (SN.BEGIN_INTERVAL_TIME)             BEGIN_INTERVAL_TIME,
+         MAX (SN.END_INTERVAL_TIME)             END_INTERVAL_TIME,
+         MAX (CAST (DBMS_LOB.SUBSTR (T.SQL_TEXT, 2000) AS NVARCHAR2 (2000)))             SQL_TEXT,
+         SUM (S.EXECUTIONS_DELTA)                   EXECUTIONS,
+         SUM (S.ELAPSED_TIME_DELTA)                 ELAPSED_TIME
+    FROM DBA_HIST_SQLSTAT S, DBA_HIST_SQLTEXT T, DBA_HIST_SNAPSHOT SN
+   WHERE     T.SQL_ID = S.SQL_ID
+         AND S.SNAP_ID = SN.SNAP_ID
+         AND SN.BEGIN_INTERVAL_TIME >= SYSDATE - 1
+         AND SN.END_INTERVAL_TIME <= SYSDATE
+GROUP BY T.SQL_ID
+ORDER BY ELAPSED_TIME DESC;
+
+#########  latest executed queries in DB #############
+
+select * from (select SQL_FULLTEXT,sql_id, LAST_LOAD_TIME  FROM gv$sql where LAST_LOAD_TIME is not null order by LAST_LOAD_TIME desc) where rownum <= 10;
+
+############  per exction time of a query ##############
+select inst_id,
+       sql_id,
+       EXECUTIONS,
+       round(elapsed_time/1000000, 6) elapsed_sec,
+       round((elapsed_time/1000000)/(case when EXECUTIONS = 0 then 1 else EXECUTIONS end), 6) elapsed_per_exec,
+       last_active_time
+from gv$sqlstats where sql_id='&sql_id'
+order by 5 desc;
+
+
+set lines 120 trimspool on
+col event head "Waited for" format a30
+col total_waits head "Total|Waits" format 999,999
+col tw_ms head "Waited|for (ms)" format 999,999.99
+col aw_ms head "Average|Wait (ms)" format 999,999.99
+col mw_ms head "Max|Wait (ms)" format 999,999.99
+select event, total_waits, time_waited10 tw_ms,
+average_wait10 aw_ms, max_wait*10 mw_ms
+from v$session_event
+where sid='&sql_id' 
+/
+
+
+col event format a30
+col sample_time format a25
+select session_id, sample_time, session_state, event, wait_time, time_waited, sql_id, sql_child_number CH#
+from v$active_session_history
+where sql_id='&sql_id'
+order by sample_time;
+
+
+SELECT DBMS_SQLTUNE.report_sql_monitor(
+  sql_id       => 'guan851fqba6g',
+  type         => 'text',
+  report_level => 'ALL') AS report
+FROM dual;
+
+
+#####################  Change C ###################
+
+col begin_interval_time for a30
+break on plan_hash_value on startup_time skip 1
+select ss.snap_id, ss.instance_number node, begin_interval_time, s.sql_id, s.plan_hash_value,
+nvl(executions_delta,0) execs,
+(elapsed_time_delta/decode(nvl(executions_delta,0),0,1,executions_delta))/1000000 avg_etime,
+(buffer_gets_delta/decode(nvl(buffer_gets_delta,0),0,1,executions_delta)) avg_lio, version_count
+from DBA_HIST_SQLSTAT S, DBA_HIST_SNAPSHOT SS
+where s.sql_id = nvl('&sql_id','4dqs2k5tynk61')
+and ss.snap_id = S.snap_id
+and ss.instance_number = S.instance_number
+and executions_delta > 0 --and plan_hash_value=3099046451
+order by 1, 2, 3
+/
+
+select sql_id,executions, elapsed_time/1000000 seconds
+from gv$sql where sql_id='&SQL_ID'
+order by executions desc;
+
+########  filesystem IO
+
+col AVERAGE_READ_TIME for 9999.999
+col FS for a15
+col host_name for a15
+select HOST_NAME,substr(file_name,1,(instrb(file_name,'/',2,1) - 1)) FS,avg(AVERAGE_READ_TIME *10 ) AVERAGE_READ_TIME,
+sum(PHYSICAL_READS + PHYSICAL_BLOCK_READS) Reads
+from gv$filemetric_history fh,dba_data_files df, gv$instance i
+where df.file_id = fh.file_id and AVERAGE_READ_TIME > 0 and i.INST_ID = fh.INST_ID
+group by HOST_NAME,substr(file_name,1,(instrb(file_name,'/',2,1) - 1));
+
+
+col AVERAGE_WRITE_TIME for 9999.999
+col FS for a15
+col host_name for a15
+select HOST_NAME,substr(file_name,1,(instrb(file_name,'/',2,1) - 1)) FS,avg(AVERAGE_WRITE_TIME * 10) AVERAGE_WRITE_TIME,
+sum(PHYSICAL_WRITES + PHYSICAL_BLOCK_WRITES) Writes
+from gv$filemetric_history fh,dba_data_files df, gv$instance i
+where df.file_id = fh.file_id and AVERAGE_WRITE_TIME > 0 and i.INST_ID = fh.INST_ID
+group by HOST_NAME,substr(file_name,1,(instrb(file_name,'/',2,1) - 1));
+
+col AVERAGE_WRITE_TIME for 99999.999
+col FS for a15
+col host_name for a15
+select HOST_NAME,to_char(END_TIME,'HH24:MI') EndTime,substr(file_name,1,(instrb(file_name,'/',2,1) - 1)) FS,avg(AVERAGE_WRITE_TIME * 10) AVERAGE_WRITE_TIME,
+sum(PHYSICAL_WRITES + PHYSICAL_BLOCK_WRITES) Writes
+from gv$filemetric_history fh,dba_data_files df, gv$instance i
+where df.file_id = fh.file_id and AVERAGE_WRITE_TIME > 0 and i.INST_ID = fh.INST_ID
+group by HOST_NAME,to_char(END_TIME,'HH24:MI'),substr(file_name,1,(instrb(file_name,'/',2,1) - 1));
+
+
+
+
+SELECT sid, serial# FROM SYS.V_$SESSION
+WHERE SID = (SELECT DISTINCT SID FROM SYS.V_$MYSTAT);
+EXEC DBMS_SYSTEM.set_sql_trace_in_session(sid=>3426, serial#=>1234, sql_trace=>TRUE)
+
+select TOP_LEVEL_SQL_ID from
+dba_hist_active_sess_history ,DBA_OBJECTS o
+where o.object_name='&Object_name'
+and o.owner='&OWNER'
+and PLSQL_ENTRY_OBJECT_ID=o.object_id
+and dbid=909727988
+having (max(sample_time)-min(sample_time)) not like '%00000000000:00:00.000%'
+group by TOP_LEVEL_SQL_ID
+order by min(sample_time);  
+
+
+TOP_LEVEL_SQL
+-------------
+9n5dfwyx79t91
+
+
+SQL>    select TOP_LEVEL_SQL_ID from
+dba_hist_active_sess_history ,DBA_OBJECTS o
+where o.object_name='BOOMITRACE'
+and o.owner='BOOMI_OWNER'
+and PLSQL_ENTRY_OBJECT_ID=o.object_id
+and dbid=207698507
+having (max(sample_time)-min(sample_time)) not like '%00000000000:00:00.000%'
+group by TOP_LEVEL_SQL_ID
+order by min(sample_time);
+  2    3    4    5    6    7    8    9
+
+no rows selected
+
+SQL> SQL> select TOP_LEVEL_SQL_ID from
+  2  dba_hist_active_sess_history ,DBA_OBJECTS o
+where o.object_name='LOAD_TERRITORIES_STAGING.LOAD_ALL'
+and o.owner='TERR'
+and PLSQL_ENTRY_OBJECT_ID=o.object_id
+and dbid=1316174619
+having (max(sample_time)-min(sample_time)) not like '%00000000000:00:00.000%'
+group by TOP_LEVEL_SQL_ID
+order by min(sample_time);
+  8    9
+
+no rows selected
+
+SQL> SQL> select TOP_LEVEL_SQL_ID from
+  2  dba_hist_active_sess_history ,DBA_OBJECTS o
+where o.object_name='LOAD_TERRITORIES_STAGING_BATCH'
+and o.owner='TERR'
+and PLSQL_ENTRY_OBJECT_ID=o.object_id
+and dbid=1316174619
+having (max(sample_time)-min(sample_time)) not like '%00000000000:00:00.000%'
+group by TOP_LEVEL_SQL_ID
+order by min(sample_time);  3    4    5    6    7    8    9
+
+no rows selected
+
+
+
+
+step-3: (sql_id's of step-2 input (step-a,b.c..etc) to step-3)
+
+select distinct sql_id from dba_hist_active_sess_history where top_level_sql_id='&sql_id';
+934ytfu74tz2p
+ 
+step-4 (sql_id's of step-3 input to step-4) 
+
+ DECODE(FIELD2,0,0,((FIELD1/FIELD2)*100))
+col sql_text for a40
+col sql_profile for a25
+select inst_id,sql_id, plan_hash_value, executions, DECODE(executions,0,0,((elapsed_time/executions)/1000000)) avg_time_sec, DECODE(executions,0,0,(buffer_gets/executions)) avg_lio, DECODE(executions,0,0,(rows_processed/executions)) avg_row,sql_profile,first_load_time
+from gv$sqlarea 
+where sql_id in ('axkhps31t85mg','gswyyzmb5scfy','f701yuwjn6hx3','0g273cffx4fxq','g4z80jau7n7r0','c2dyd98rtjk3j','cajrkj7jckg7n','ct6c4h224pxgz','gy3jyf2gvqj3f','djt71km5vuh6a','66aczutdbxaqv','8xj45gkg0cjrx','graffkb84924j','671nd89ffyau4','4h61n8phhs4wy','01nfy1zhq9052','822pdjudubrqk') and to_timestamp(first_load_time, 'YYYY-MM-DD/HH24:MI:SS') > to_timestamp('2021-11-20/00:10:00', 'YYYY-MM-DD/HH24:MI:SS') 
+    and to_timestamp(first_load_time, 'YYYY-MM-DD/HH24:MI:SS') < to_timestamp('2021-11-20/14:00:00', 'YYYY-MM-DD/HH24:MI:SS');
+
+
+
+###########  DROP schema objects 
+
+select 'alter system kill session '''|| sid || ',' || serial# || ''' immediate;' SCHEMA_SESSIONS from v$session where upper(username)=upper('&SCHEMA') order by username;
+
+
+spool DROP_SCHEMA_TABLES.sql
+select 'drop '|| object_type || ' ' || owner || '.' || object_name || ' cascade constraints purge;' DROP_SCHEMA_TABLES from dba_objects where upper(owner)=upper('&SCHEMA') and object_type='TABLE';
+spool off;
+
+spool DROP_SCHEMA_TABLES.log
+@DROP_SCHEMA_TABLES.sql
+spool off;
+ 
+
+spool DROP_SCHEMA_OBJECTS.sql
+select 'drop '|| object_type || ' ' || owner || '.' || object_name || ';' DROP_SCHEMA_OBJECTS from dba_objects where upper(owner)=upper('&SCHEMA') and object_type<>'PACKAGE BODY';
+spool off;
+ 
+
+spool DROP_SCHEMA_OBJECTS.log
+@DROP_SCHEMA_OBJECTS.sql
+spool off;
+
+
+select 'alter index '|| owner || '.'||INDEX_NAME||' rebuild online;' from dba_indexes where TABLE_NAME='DATASOURCEHISTORY' and OWNER='OTP_CAPITALPOWER_TAXPROVISI_10';
+
+select 'alter TABLE '|| owner || '.'||TABLE_NAME||' move TABLESPACE TS_AUDITDATA;' from DBA_TABLES where TABLE_NAME='&tablename' and OWNER='&OWNER';
+
+
+##################################################
+
+
+[oracle@test ~]$ export ORACLE_PDB_SID=ORCLPDB1
+[oracle@test ~]$ expdp \"/ as sysdba\" tables=hr.employees
+
+select 'exec DBMS_SHARED_POOL.PURGE ('||chr(39)||ADDRESS||','||HASH_VALUE||chr(39)||','||chr(39)||'C'||chr(39)||');' from V$SQLAREA where SQL_ID= '&dmahkf37pcd1t';
+
+
+
+
+
+select 'alter system kill session '''|| sid || ',' || serial# || ''' immediate;' SCHEMA_SESSIONS from v$session where upper(username)=upper('&SCHEMA') order by username;
+ 
+spool DROP_SCHEMA_TABLES.sql
+select 'drop '|| object_type || ' ' || owner || '.' || object_name || ' cascade constraints purge;' DROP_SCHEMA_TABLES from dba_objects where upper(owner)=upper('&SCHEMA') and object_type='TABLE';
+spool off;
+ 
+spool DROP_SCHEMA_TABLES.log
+@DROP_SCHEMA_TABLES.sql
+spool off;
+ 
+spool DROP_SCHEMA_OBJECTS.sql
+set heading off
+select 'drop '|| object_type || ' ' || owner || '.' || object_name || ';' DROP_SCHEMA_OBJECTS from dba_objects where upper(owner)=upper('&SCHEMA') and object_type<>'PACKAGE BODY';
+spool off;
+ 
+spool DROP_SCHEMA_OBJECTS.log
+@DROP_SCHEMA_OBJECTS.sql
+spool off;
+
+
+Select u.inst#            instid    ,
+   u.name             useg      ,
+   u.status$          status    ,
+       x.ktuxeusn         usn       ,
+       x.ktuxeslt         slt       ,
+       x.ktuxesqn         wrp       ,
+       x.ktuxesiz         undoblocks
+From   x$ktuxe            x,
+       undo$              u
+ Where  x.ktuxeusn = u.us#
+And    x.ktuxesta = 'ACTIVE'
+And    x.ktuxecfl like 'DEAD%' ;
+
+
+b01umvp5rb7v3
+
+no rows selected
+
+SQL> select sql_fulltext from gv$sql where sql_id like'%b01umvp5rb7v3%';
+
+SQL_FULLTEXT
+--------------------------------------------------------------------------------
+INSERT INTO TRDW.GRA_CALC_FACT_STAGE_4
+SELECT * FROM TRDW.GRA_CALC_FACT WHERE RE
+
+
+
+SELECT se.sid sess_id, co.name consumer_group, 
+ se.state, se.consumed_cpu_time cpu_time, se.cpu_wait_time, se.queued_time
+ FROM v$rsrc_session_info se, gv$rsrc_consumer_group co
+ WHERE se.current_consumer_group_id = co.id;
+
+
+select t.*
+ from v$sql_plan v,
+  xmltable(
+    '/other_xml/info'
+    passing xmltype(v.other_xml)
+    columns
+        info_type varchar2(30) path '@type',
+        info_value varchar2(30) path '/info'
+  ) t
+where v.sql_id = '&sql_id'
+  and other_xml is not null;
+  
+  
+ select px.sid, px.serial#,px.qcsid,px.qcserial#,px.qcinst_id,px.degree,px.req_degree,
+ s.username, s.sql_id, s.sql_child_number, s.event, s.state
+ from v$px_session px, v$session s
+ where s.sid = px.sid
+ and s.serial# = px.serial#
+ order by px.qcsid;
+
+
+
+
+
+###########  History of locking session 
+
+col event for a22
+col block_type for a18
+col objn for a18
+col otype for a10
+col fn for 99
+col sid for 9999
+col bsid for 9999
+col lm for 99
+col p3 for 99999
+col blockn for 99999
+col SQL_ID for a15
+select
+to_char(sample_time,'HH:MI') st,
+substr(event,0,20) event,
+a.session_id sid,
+mod(a.p1,16)  lm,
+a.p2,
+a.p3,
+nvl(o.object_name,a.current_obj#) objn,
+a.IS_SQLID_CURRENT,
+a.SQL_ID,
+BLOCKING_SESSION bsid
+from v$active_session_history a,
+all_objects o
+where event like 'resmgr:cpu quantum%'
+and o.object_id (+)= a.CURRENT_OBJ#
+and sample_time > sysdate - 24
+Order by sample_time desc
+/
+
+select * from (
+SELECT SQL_ID,
+       executions,
+       LAST_LOAD_TIME,
+       TO_CHAR(LAST_ACTIVE_TIME, 'YYYY-MM-DD HH24:MI:SS') AS last_active_time,
+       TO_CHAR(ELAPSED_TIME/1000/1000, '999,999,999.000') || ' s' AS TIME
+FROM   v$sql
+ORDER BY
+        executions DESC) where rownum<100;
+
+
+SELECT trunc(sample_time,'MI'),
+       sql_id,
+       count(sql_id) as TOTAL
+FROM v$active_session_history
+WHERE sample_time between sysdate - interval '2' hour and sysdate
+AND sql_id in (select sql_id from (
+ select
+     SQL_ID ,
+     sum(decode(session_state,'WAITING',1,1))  as TOTAL_ACTIVITY
+from v$active_session_history
+WHERE sample_time between sysdate - interval '2' hour and sysdate
+group by sql_id
+order by sum(decode(session_state,'WAITING',1,1))   desc)
+where rownum < 11)
+group by trunc(sample_time,'MI'),sql_id 
+order by trunc(sample_time,'MI') desc;
+
+
+
+set pages 10000 lines 200
+select to_char(sample_time, 'yyyymmdd hh24:mi') time, count(distinct(concat(session_id, session_serial#))) cnt
+from ash_0427
+group by to_char(sample_time, 'yyyymmdd hh24:mi')
+order by 1;
+
+
+##########3   wait event history #####3
+
+https://cdmana.com/2020/11/20201126213223991z.html
+
+set linesize 290 pages 999
+col event for a40
+col SAMPLE_TIME for a40
+col OBJECT_NAME for a40
+
+SELECT ASH.event,
+       ASH.current_obj#,
+       ASH.sample_time,
+       OBJ.object_name,
+	   ASH.SQL_ID
+FROM   dba_hist_active_sess_history ASH,
+       dba_objects OBJ
+WHERE  ASH.sample_time BETWEEN to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')
+       AND ASH.current_obj# = OBJ.object_id
+UNION
+SELECT ASHS.event,
+       ASHS.current_obj#,
+       ASHS.sample_time,
+       OBJ.object_name,
+	   ASHS.SQL_ID
+FROM   v$active_session_history ASHS,
+       dba_objects OBJ
+WHERE  ASHS.sample_time BETWEEN to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')
+       AND ASHS.current_obj# = OBJ.object_id
+ORDER  BY sample_time DESC; 
+
+
+col event for a28
+select distinct sql_id,sample_time, session_id,event,
+        blocking_session,PROGRAM 
+from    dba_hist_active_sess_history a
+where   a.sample_time > to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS')
+and     a.sample_time < to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')
+and     blocking_session is not null
+order by a.sample_time;
+
+select  sample_time, session_id,session_serial#,session_type,user_id,sql_id,event,
+        blocking_session_status,blocking_session,PROGRAM,MACHINE    
+from    v$active_session_history a
+where    a.sample_time > to_date('17-JUN-2021 00:00:00','DD-MON-YYYY HH24:MI:SS')
+and     a.sample_time < to_date('17-JUN-2021 00:18:00','DD-MON-YYYY HH24:MI:SS')
+and     a.session_id = '&SID'
+order by a.sample_time;
+
+
+
+ SELECT event,count(*)
+FROM dba_hist_active_sess_history a
+WHERE a.sample_time BETWEEN to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS') group by event;
+
+
+SELECT module,count(*)
+FROM dba_hist_active_sess_history a
+WHERE a.sample_time BETWEEN to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')  and event ='resmgr:cpu quantum' group by module;
+ 
+ 
+ SELECT SESSION_ID,USER_ID,SQL_ID FROM dba_hist_active_sess_history a
+WHERE a.sample_time BETWEEN to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')  and event ='resmgr:cpu quantum';
+
+ SELECT count(*),SQL_ID FROM dba_hist_active_sess_history a
+WHERE a.sample_time BETWEEN to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')  and event ='resmgr:cpu quantum' group by sql_id order by 1;
+
+
+select * from (
+  select LAST_LOAD_TIME, to_char(ELAPSED_TIME/1000, '999,999,999.000') || ' ms' as TIME,sql_id
+         SQL_TEXT from v$sql
+    where SQL_TEXT like '%select count(*) COUNT from (SELECT a.guid, a.stage_id%'
+    order by LAST_LOAD_TIME desc
+  ) where ROWNUM <= 20;
+  
+  
+  
+select SQL_ID,SQL_EXEC_START,SESSION_STATE,WAIT_CLASS,EVENT,BLOCKING_SESSION
+from DBA_HIST_ACTIVE_SESS_HISTORY
+where sql_id='&SQL_ID' and 
+sample_time 
+between 
+to_date('22-JUN-2021 00:06:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('23-JUN-2021 00:10:00','DD-MON-YYYY HH24:MI:SS')
+and instance_number in (1,12)
+order by sample_time,instance_number,SESSION_ID;
+
+
+select
+    event,
+    time_waited "time_waited(s)",
+    case when time_waited = 0 then 
+        0
+    else
+        round(time_waited*100 / sum(time_waited) Over(), 2)
+    end "percentage"
+from
+    (
+        select event, sum(time_waited) time_waited
+        from v$active_session_history
+        where sql_id = '&SQL_ID'
+        group by event;
+    )
+order by
+    time_waited desc;
+
+
+
+-- AWR
+select
+    event,
+    time_waited "time_waited(s)",
+    case when time_waited = 0 then 
+        0
+    else
+        round(time_waited*100 / sum(time_waited) Over(), 2)
+    end "percentage"
+from
+    (
+        select event, sum(time_waited) time_waited
+        from dba_hist_active_sess_history
+        where sql_id = '&SQL_ID'
+        group by event
+    )
+order by
+    time_waited desc;
+	
+	
+
+
+select sql_text from v$sql where sql_id in(select SQL_ID
+from DBA_HIST_ACTIVE_SESS_HISTORY
+where 
+sample_time 
+between 
+to_date('17-JUN-2021 00:06:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('17-JUN-2021 00:18:00','DD-MON-YYYY HH24:MI:SS'));
+and instance_number in (1,12));
+
+order by sample_time,instance_number,SESSION_ID);
+
+
+select  sample_time, session_id,session_type,sql_id,event,
+        blocking_session,PROGRAM 
+from    dba_hist_active_sess_history a
+where   a.sample_time > to_date('17-JUN-2021 00:00:00','DD-MON-YYYY HH24:MI:SS')
+and     a.sample_time < to_date('17-JUN-2021 00:18:00','DD-MON-YYYY HH24:MI:SS')
+and     blocking_session is not null
+order by a.sample_time;
+
+select  sample_time, session_id,session_serial#,session_type,user_id,sql_id,event,
+        blocking_session_status,blocking_session,PROGRAM,MACHINE    
+from    v$active_session_history a
+where    a.sample_time > to_date('17-JUN-2021 00:00:00','DD-MON-YYYY HH24:MI:SS')
+and     a.sample_time < to_date('17-JUN-2021 00:18:00','DD-MON-YYYY HH24:MI:SS')
+and     a.session_id = '&SID'
+order by a.sample_time;
+
+
+
+ SELECT event,count(*)
+FROM dba_hist_active_sess_history a
+WHERE a.sample_time BETWEEN to_date('20-SEP-2022 00:00:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('21-SEP-2022 23:00:00','DD-MON-YYYY HH24:MI:SS') group by event;
+
+
+
+set linesize 290 pages 999
+col event for a50
+col SAMPLE_TIME for a50
+col OBJECT_NAME for a40
+
+SELECT ASH.event,
+       ASH.current_obj#,
+       ASH.sample_time,
+       OBJ.object_name
+FROM   dba_hist_active_sess_history ASH,
+       dba_objects OBJ
+WHERE  ASH.sample_time BETWEEN to_date('17-JUN-2021 00:00:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('17-JUN-2021 00:18:00','DD-MON-YYYY HH24:MI:SS')
+       AND ASH.current_obj# = OBJ.object_id
+UNION
+SELECT ASHS.event,
+       ASHS.current_obj#,
+       ASHS.sample_time,
+       OBJ.object_name
+FROM   v$active_session_history ASHS,
+       dba_objects OBJ
+WHERE  ASHS.sample_time BETWEEN to_date('17-JUN-2021 00:00:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('17-JUN-2021 00:18:00','DD-MON-YYYY HH24:MI:SS')
+       AND ASHS.current_obj# = OBJ.object_id
+ORDER  BY sample_time DESC; 
+
+
+select SQL_ID,SQL_EXEC_START,SESSION_STATE,WAIT_CLASS,EVENT,BLOCKING_SESSION
+from DBA_HIST_ACTIVE_SESS_HISTORY
+where 
+sample_time 
+between 
+to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')
+and instance_number in (1,12)
+order by sample_time,instance_number,SESSION_ID;
+
+select SQL_ID,BLOCKING_SESSION
+from DBA_HIST_ACTIVE_SESS_HISTORY
+where 
+sample_time 
+between 
+to_date('03-JAN-2023 13:30:00','DD-MON-YYYY HH24:MI:SS') AND
+to_date('03-JAN-2023 14:00:00','DD-MON-YYYY HH24:MI:SS')
+and instance_number in (1,12) and BLOCKING_SESSION is not null
+order by SESSION_ID;
+
+
+
+###################  LOCKS and BLOCKS  ################
+
+select s1.username || '@' || s1.machine || ' ( SID=' || s1.sid ||
+' )  is blocking ' || s2.username || '@' || s2.machine || ' ( SID=' ||
+s2.sid || ' ) ' AS blocking_status
+from gv$lock l1, gv$session s1, gv$lock l2, v$session s2
+where s1.sid = l1.sid
+and s2.sid = l2.sid
+and l1.BLOCK = 1
+and l2.request > 0
+and l1.id1 = l2.id1
+and l2.id2 = l2.id2;
+
+
+COL Blocking for a40
+select 'SID ' || l1.sid ||' is blocking  ' || l2.sid  ||' since '|| l1.ctime Blocking
+from    v$lock l1, v$lock l2
+where   l1.block =1 and l2.request > 0
+and     l1.id1=l2.id1
+and     l1.id2=l2.id2
+order by l1.ctime
+/
+
+with lk as (select blocking_instance||'.'||blocking_session blocker, inst_id||'.'||sid waiter 
+            from gv$session where blocking_instance is not null and blocking_session is not null)
+select lpad('  ',2*(level-1))||waiter lock_tree from
+ (select * from lk
+  union all
+  select distinct 'root', blocker from lk
+  where blocker not in (select waiter from lk))
+connect by prior waiter=blocker start with blocker='root';
+
+
+select decode(request, 0, 'Holder: ', 'Waiter: ') || sid sess,
+id1,
+id2,
+lmode,
+request,
+type
+from v$lock
+where (id1, id2, type) in
+(select id1, id2, type from v$lock where request > 0)
+order by id1, request;
+
+select blocking_session, sid, wait_class, sql_id, seconds_in_wait
+from gv$session
+where blocking_session is not NULL
+order by blocking_session;
+
+--To find the most important wait events in the last 15 minutes, issue the following query:
+select session_id,
+sql_id,
+event,
+sum(wait_time + time_waited) total_wait_time
+from v$active_session_history
+where sample_time between sysdate -24 and sysdate
+group by event, session_id, sql_id
+order by total_wait_time desc;
+
+--You can identify the SQL statements that have been waiting the most during the last 15 minutes with this query.
+select a.user_id,
+u.username,
+s.sql_text,
+s.sql_id,
+sum(a.wait_time + a.time_waited) total_wait_time
+from v$active_session_history a, v$sqlarea s, dba_users u
+where a.sample_time between sysdate - 1/12 and sysdate
+and a.sql_id = s.sql_id
+and a.user_id = u.user_id
+group by a.user_id, s.sql_text, u.username, s.sql_id
+order by total_wait_time desc;
+
+ 
+
+ 
+
+ 
+
+set echo off
+col sid form 9999
+col id1 form 9999999999
+col id2 form 999999999
+col lmode    head "Lock Held" form a14
+col request1 head "Lock Request" form a16
+col type     head "Lock Type" form a15
+col ctime    head "Time|Held" form 999999
+col block head "No Of |Sessions|Waiting|For This|Lock" form 99999
+
+---Check for Lock type, mode etc.
+
+select sid,
+DECODE(TYPE,
+'BL','Buffer hash table',
+'CF','Control File Transaction',
+'CI','Cross Instance Call',
+'CS','Control File Schema',
+'CU','Bind Enqueue',
+'DF','Data File',
+'DL','Direct-loader index-creation',
+'DM','Mount/startup db primary/secondary instance',
+'DR','Distributed Recovery Process',
+'DX','Distributed Transaction Entry',
+'FI','SGA Open-File Information',
+'FS','File Set',
+'IN','Instance Number',
+'IR','Instance Recovery Serialization',
+'IS','Instance State',
+'IV','Library Cache InValidation',
+'JQ','Job Queue',
+'KK','Redo Log "Kick"',
+'LS','Log Start/Log Switch',
+'MB','Master Buffer hash table',
+'MM','Mount Definition',
+'MR','Media Recovery',
+'PF','Password File',
+'PI','Parallel Slaves',
+'PR','Process Startup',
+'PS','Parallel Slaves Synchronization',
+'RE','USE_ROW_ENQUEUE Enforcement',
+'RT','Redo Thread',
+'RW','Row Wait',
+'SC','System Commit Number',
+'SH','System Commit Number HWM',
+'SM','SMON',
+'SQ','Sequence Number',
+'SR','Synchronized Replication',
+'SS','Sort Segment',
+'ST','Space Transaction',
+'SV','Sequence Number Value',
+'TA','Transaction Recovery',
+'TD','DDL enqueue',
+'TE','Extend-segment enqueue',
+'TM','DML enqueue',
+'TS','Temporary Segment',
+'TT','Temporary Table',
+'TX','Transaction',
+'UL','User-defined Lock',
+'UN','User Name',
+'US','Undo Segment Serialization',
+'WL','Being-written redo log instance',
+'WS','Write-atomic-log-switch global enqueue',
+'XA','Instance Attribute',
+'XI','Instance Registration',
+decode(substr(TYPE,1,1),
+'L','Library Cache ('||substr(TYPE,2,1)||')',
+'N','Library Cache Pin ('||substr(TYPE,2,1)||')',
+'Q','Row Cache ('||substr(TYPE,2,1)||')',
+'????')) TYPE,
+id1,id2,
+decode(lmode,
+0,'None(0)',
+1,'Null(1)',
+2,'Row Share(2)',
+3,'Row Exclu(3)',
+4,'Share(4)',
+5,'Share Row Ex(5)',
+6,'Exclusive(6)') lmode,
+decode(request,
+0,'None(0)',
+1,'Null(1)',
+2,'Row Share(2)',
+3,'Row Exclu(3)',
+4,'Share(4)',
+5,'Share Row Ex(5)',
+6,'Exclusive(6)') request1,
+ctime, block
+from
+v$lock
+where sid>5
+and type not in ('MR','RT')
+order by decode(request,0,0,2),block,5
+/
+
+
+
+#######  startup history of DB.
+
+
+select  to_char(originating_timestamp, 'YYYY-MM-DD HH24:MI' ), message_text 
+from X$DBGALERTEXT
+where  message_text like '%Starting ORACLE instance%' or
+       message_text like '%Instance shutdown%';
+	   
+	   
+col "TO_CHAR(STARTUP_TIME,'HH24:MIDD-MON-YY')" for a60
+set linesize 200 pagesize 200
+alter session set nls_date_format='dd-MON-yy hh24:mi';
+COL INSTANCE_NAME FOR A10
+SELECT INSTANCE_NAME,TO_CHAR(STARTUP_TIME, 'HH24:MI DD-MON-YY') FROM DBA_HIST_DATABASE_INSTANCE ORDER BY STARTUP_TIME DESC;
+   
+
+select sql_id, count(*) from dba_hist_active_sess_history
+where snap_id=&snap_id
+and event like'%pin S wait on X%'
+group by sql_id
+order by 2;
+
+
+select sql_id, count(*) from dba_hist_active_sess_history
+where event like'%library cache%'
+group by sql_id
+order by 2;
+
+
+
+set linesize 152
+column average_wait format 9999990.00
+
+select substr(e.event, 1, 40) event,
+e.time_waited,e.time_waited / decode(e.event,
+'latch free', e.total_waits,
+decode(e.total_waits - e.total_timeouts,0, 1,e.total_waits - e.total_timeouts)) average_wait
+from sys.v$system_event e,sys.v$instance i
+where e.event like '%direct path read%';
+
+
+select sid Waiter, p1raw,
+substr(rawtohex(p1),1,30) Handle,
+substr(rawtohex(p2),1,30) Pin_addr
+from v$session_wait where wait_time=0 and event like '%direct path read%';
+
+
+select a.sid Waiter,b.SERIAL#,a.event,a.p1raw,
+substr(rawtohex(a.p1),1,30) Handle,
+substr(rawtohex(a.p2),1,30) Pin_addr
+from v$session_wait a,v$session b where a.sid=b.sid
+and a.wait_time=0 and a.event like 'direct path read%';
+
+select machine from gv$session where sid in (select a.sid from v$session_wait a,v$session b where a.sid=b.sid
+and a.wait_time=0 and a.event like 'direct path read%');
+
+
+select sid Holder ,KGLPNUSE Sesion , KGLPNMOD Held, KGLPNREQ Req
+from x$kglpn , v$session
+where KGLPNHDL in (select p1raw from v$session_wait
+where wait_time=0 and event like '%direct path read%')
+and KGLPNMOD <> 0
+and v$session.saddr=x$kglpn.kglpnuse;
+
+
+############  library cache lock holder  ################
+
+select a.sid Holder ,a.SERIAL#,b.INST_ID,b.KGLPNUSE Sesion , b.KGLPNMOD Held, b.KGLPNREQ Req
+from x$kglpn b , v$session a
+where b.KGLPNHDL in (select p1raw from v$session_wait
+where wait_time=0 and event like '%row lock conten%')
+and b.KGLPNMOD <> 0
+and a.saddr=b.kglpnuse;
+
+
+set pagesize 40
+select x$kglpn.inst_id,sid Holder ,KGLPNUSE Sesion , KGLPNMOD Held, KGLPNREQ Req
+from x$kglpn , gv$session
+where KGLPNHDL in (select p1raw from gv$session_wait
+where wait_time=0 and event like '%row lock conten%')
+and KGLPNMOD <> 0
+and gv$session.saddr=x$kglpn.kglpnuse;
+
+
+select sid Waiter, p1raw,
+substr(rawtohex(p1),1,30) Handle,
+substr(rawtohex(p2),1,30) Pin_addr
+from gv$session_wait where wait_time=0 and event like '%row lock conten%';
+
+
+
+select to_char(SESSION_ID,’999′) sid ,
+substr(LOCK_TYPE,1,30) Type,
+substr(lock_id1,1,23) Object_Name,
+substr(mode_held,1,4) HELD, substr(mode_requested,1,4) REQ,
+lock_id2 Lock_addr
+from dba_lock_internal
+where session_id in ( select sid from v$session_wait where wait_time=0 and event like '%row lock conten%');
+
+
+
+
+select sql_id , sql_exec_id, count(*) duration from v$active_session_history
+group by sql_id , sql_exec_id
+having count(*) >= 300;
+
+
+SELECT
+  s.SNAP_ID,
+  h.STARTUP_TIME,
+  PLAN_HASH_VALUE,
+  EXECUTIONS_TOTAL,
+  EXECUTIONS_DELTA,
+  CPU_TIME_TOTAL*POWER(10,-6) "CPU_TIME_TOTAL"
+FROM
+  DBA_HIST_SQLSTAT s,
+  DBA_HIST_SNAPSHOT h
+WHERE SQL_ID='&sql_id'
+AND s.SNAP_ID=h.SNAP_ID and STARTUP_TIME > sysdate-7;
+
+
+
+
+set lines 155
+col execs for 999,999,999
+col avg_etime for 999,999.999
+col avg_lio for 999,999,999.9
+col begin_interval_time for a30
+col node for 99999
+break on plan_hash_value on startup_time skip 1
+select ss.snap_id, ss.instance_number node, begin_interval_time, sql_id, plan_hash_value,
+nvl(executions_delta,0) execs,
+(elapsed_time_delta/decode(nvl(executions_delta,0),0,1,executions_delta))/1000000 avg_etime,
+(buffer_gets_delta/decode(nvl(buffer_gets_delta,0),0,1,executions_delta)) avg_lio
+from DBA_HIST_SQLSTAT S, DBA_HIST_SNAPSHOT SS
+where ss.snap_id = S.snap_id
+and ss.instance_number = S.instance_number
+and executions_delta > 0 and 
+sql_id='&SQL_ID'
+order by 1, 2, 3
+/
