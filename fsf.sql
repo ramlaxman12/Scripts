@@ -1,0 +1,7 @@
+set linesi 190
+col HOST format a23
+col fsf_target format a8
+col DB_ROLE format a16
+col FS_FAILOVER_STATUS format a12
+col OBSERVER_HOST format a23 
+select (select regexp_replace(HOST_NAME,'.amazon.com$','') from v$instance) HOST,DATABASE_ROLE DB_ROLE,PROTECTION_MODE,PROTECTION_LEVEL,FS_FAILOVER_STATUS FSF_STATUS,FS_FAILOVER_CURRENT_TARGET FSF_TARGET,FS_FAILOVER_OBSERVER_PRESENT OBSRVR,regexp_replace(FS_FAILOVER_OBSERVER_HOST,'.amazon.com$','')  OBSERVER_HOST,FS_FAILOVER_THRESHOLD FSF_THRESHOULD from v$database;

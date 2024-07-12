@@ -1,0 +1,1 @@
+select bitand(spare1, 32767) from tab$ where obj# in (select object_id from dba_objects where owner='&owner' and object_name=upper('&table_name'));
