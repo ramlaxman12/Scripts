@@ -1,0 +1,262 @@
+set pagesize 50000 linesize 180
+col sql_text format a70
+col first_load_time format 9999999999999999
+select sql_text,first_load_time from
+(
+  select * from v$sql
+  where parsing_schema_name like '*'
+    and (sql_text like '%UPDATE %' or sql_text like '%INSERT %' or sql_text like '%DELETE %')
+    and to_timestamp(first_load_time, 'YYYY-MM-DD/HH24:MI:SS') > to_timestamp('2016-02-15/00:10:00', 'YYYY-MM-DD/HH24:MI:SS') 
+    and to_timestamp(first_load_time, 'YYYY-MM-DD/HH24:MI:SS') < to_timestamp('2016-02-16/02:00:00', 'YYYY-MM-DD/HH24:MI:SS')
+  order by first_load_time desc
+)
+where rownum < 400000000;
+
+
+
+set pagesize 22222 linesize 160
+SELECT s.snap_id,
+       TO_CHAR(s.end_interval_time,'DD-MON-YYYY HH24:MI:SS')
+FROM dba_hist_snapshot s,
+     v$database d,
+     v$instance i
+WHERE s.dbid = d.dbid
+AND s.instance_number = i.instance_number
+ORDER BY s.snap_id;
+
+
+select s.sid, n.name, s.value, sn.username, sn.program, sn.type, sn.module
+from v$sesstat s 
+  join v$statname n on n.statistic# = s.statistic#
+  join v$session sn on sn.sid = s.sid
+where name like '%redo entries%'
+order by value desc;
+
+
+set lines 120 pages 40
+column data_obj# format  9999999999
+column oper format A15
+column object_name format A60
+column total_redo format 99999999999999
+compute sum label 'Total Redo size' of total_Redo on report
+break on report
+spool /tmp/redo_212_2.lst
+select data_obj#, oper, obj_name, sum(redosize) total_redo
+from(select data_obj#, oper, obj.name obj_name , nextpos-curpos-1 redosize
+from redo_analysis_212_2 redo1, sys.obj$ obj
+where (redo1.data_obj# = obj.obj# (+) )
+and  nextpos !=0 -- For the boundary condition
+and redo1.data_obj#!=0
+union all
+select data_obj#, oper, 'internal ' , nextpos-curpos  redosize
+from redo_analysis_212_2 redo1
+where  redo1.data_obj#=0 and  redo1.data_obj# = 0
+and nextpos!=0
+)
+group by data_obj#, oper, obj_name
+order by 4
+/
+
+
+
+
+set pagesize 2222 linesize 150
+
+col machine for a26
+col username for a12
+col redo_MB for 999G990 heading "Redo |Size MB"
+col sid_serial for a24;
+ 
+-- select b.inst_id,
+select lpad((b.SID || ',' || lpad(b.serial#,5)),15) sid_serial,
+       b.username,
+       machine,
+       b.osuser,
+       b.status,
+       a.redo_mb 
+from (select n.inst_id, sid,
+             round(value/1024/1024) redo_mb
+        from gv$statname n, gv$sesstat s
+        where n.inst_id=s.inst_id
+              and n.name = 'redo size'
+              and s.statistic# = n.statistic#
+        order by value desc
+     ) a,
+     gv$session b
+where b.inst_id=a.inst_id
+and redo_mb > 0
+  and a.sid = b.sid
+and   rownum <= 90;
+
+
+set pagesize 5555 linesize 150
+col snap_time format a12
+col object_name format a38
+SELECT to_char(begin_interval_time,'YY-MM-DD HH24') snap_time,dhso.object_name,sum(db_block_changes_delta) BLOCK_CHANGED
+FROM dba_hist_seg_stat dhss,dba_hist_seg_stat_obj dhso,dba_hist_snapshot dhs
+WHERE dhs.snap_id = dhss.snap_id
+AND dhs.instance_number = dhss.instance_number
+AND dhss.obj# = dhso.obj#
+AND dhss.dataobj# = dhso.dataobj#
+AND begin_interval_time BETWEEN to_date('15-07-02 09:00','YY-MM-DD HH24:MI')
+AND to_date('15-07-02 12:00','YY-MM-DD HH24:MI')
+GROUP BY to_char(begin_interval_time,'YY-MM-DD HH24'),dhso.object_name
+HAVING sum(db_block_changes_delta) > 10000
+ORDER BY sum(db_block_changes_delta);
+
+
+col machine for a15
+col username for a10
+col redo_MB for 999G990 heading "Redo |Size MB"
+column sid_serial for a13;
+ 
+select b.inst_id,
+       lpad((b.SID || ',' || lpad(b.serial#,5)),11) sid_serial,
+       b.username,
+       machine,
+       b.osuser,
+       b.status,
+       a.redo_mb 
+from (select n.inst_id, sid,
+             round(value/1024/1024) redo_mb
+        from gv$statname n, gv$sesstat s
+        where n.inst_id=s.inst_id
+              and n.name = 'redo size'
+              and s.statistic# = n.statistic#
+        order by value desc
+     ) a,
+     gv$session b
+where b.inst_id=a.inst_id
+  and a.sid = b.sid
+and   rownum <= 30
+;
+
+
+SELECT to_char(begin_interval_time,'YY-MM-DD HH24') snap_time,
+        dhso.object_name,
+        sum(db_block_changes_delta) BLOCK_CHANGED
+  FROM dba_hist_seg_stat dhss,
+       dba_hist_seg_stat_obj dhso,
+       dba_hist_snapshot dhs
+  WHERE dhs.snap_id = dhss.snap_id
+    AND dhs.instance_number = dhss.instance_number
+    AND dhss.obj# = dhso.obj#
+    AND dhss.dataobj# = dhso.dataobj#
+    AND begin_interval_time BETWEEN to_date('15-08-08 13:00','YY-MM-DD HH24:MI')
+                                AND to_date('15-08-11 14:00','YY-MM-DD HH24:MI')
+  GROUP BY to_char(begin_interval_time,'YY-MM-DD HH24'),
+           dhso.object_name
+  HAVING sum(db_block_changes_delta) > 0
+ORDER BY sum(db_block_changes_delta) desc ;
+
+
+
+
+SELECT to_char(begin_interval_time,'YYYY_MM_DD HH24') WHEN,
+       dbms_lob.substr(sql_text,4000,1) SQL,
+       dhss.instance_number INST_ID,
+       dhss.sql_id,
+       executions_delta exec_delta,
+       rows_processed_delta rows_proc_delta
+  FROM dba_hist_sqlstat dhss,
+       dba_hist_snapshot dhs,
+       dba_hist_sqltext dhst
+  WHERE upper(dhst.sql_text) LIKE '%USR_RACUNI_MV%'
+    AND ltrim(upper(dhst.sql_text)) NOT LIKE 'SELECT%'
+    AND dhss.snap_id=dhs.snap_id
+    AND dhss.instance_number=dhs.instance_number
+    AND dhss.sql_id=dhst.sql_id
+    AND begin_interval_time BETWEEN to_date('11-01-28 13:00','YY-MM-DD HH24:MI')
+                                AND to_date('11-01-28 14:00','YY-MM-DD HH24:MI')
+
+
+
+
+SELECT to_char(begin_interval_time,'YY-MM-DD HH24') snap_time,
+       sum(db_block_changes_delta)
+  FROM dba_hist_seg_stat dhss,
+       dba_hist_seg_stat_obj dhso,
+       dba_hist_snapshot dhs
+  WHERE dhs.snap_id = dhss.snap_id
+    AND dhs.instance_number = dhss.instance_number
+    AND dhss.obj# = dhso.obj#
+    AND dhss.dataobj# = dhso.dataobj#
+    AND dhso.object_name = 'C_DBTL_INPUT'
+  GROUP BY to_char(begin_interval_time,'YY-MM-DD HH24')
+  ORDER BY to_char(begin_interval_time,'YY-MM-DD HH24');
+
+
+
+
+
+Archive log generation on hourly basis
+==============================
+
+ select to_char(first_time,'DD-MON'),count(*) from v$log_history where to_char(first_time,'MON')='&MONTH' group by to_char(first_time,'DD-MON') order by 1;
+
+
+select to_char(FIRST_TIME,'YYYYMMDD HH24'), count(1), round(sum(BLOCKS*BLOCK_SIZE/1024/1024)) size_mb
+from v$archived_log
+where FIRST_TIME > sysdate -1
+group by to_char(FIRST_TIME,'YYYYMMDD HH24')
+order by 1; insc;
+
+select to_char(FIRST_TIME,'YYYYMMDD'),count(1), round(sum(BLOCKS*BLOCK_SIZE/1024/1024/1024)) size_GB
+from v$archived_log
+where FIRST_TIME > sysdate -8
+group by to_char(FIRST_TIME,'YYYYMMDD')
+order by 1 desc;
+
+==============================================================================================================
+select to_char(FIRST_TIME,'DD-MON'), count(1), round(sum(BLOCKS*BLOCK_SIZE/1024/1024)) size_mb
+from v$archived_log
+where to_char(first_time,'MON')='&MONTH'
+group by to_char(FIRST_TIME,'DD-MON')
+order by 1;
+
+
+SELECT to_char(begin_interval_time,'YYYY_MM_DD HH24:MI') snap_time,
+dhsso.object_name,sum(db_block_changes_delta) as maxchanges
+FROM dba_hist_seg_stat dhss,dba_hist_seg_stat_obj dhsso,
+dba_hist_snapshot WHERE dhs.snap_id = dhss.snap_id
+AND dhs.instance_number = dhss.instance_number
+AND dhss.obj# = dhsso.obj# AND dhss.dataobj# = dhsso.dataobj#
+AND begin_interval_time BETWEEN to_date('2015-08-09 00:00:00','YYYY-MM-DD HH24:MI:SS')
+AND to_date('2015-08-11 10:00:00','YYYY-MM-DD HH24:MI:SS')
+GROUP BY to_char(begin_interval_time,'YYYY-MM-DD HH24:MI:SS'),dhsso.object_name 
+order by maxchanges asc;
+
+SELECT to_char(begin_interval_time,'YYYY_MM_DD HH24:MI') snap_time,
+        dhsso.object_name,
+        sum(db_block_changes_delta)
+  FROM dba_hist_seg_stat dhss,
+         dba_hist_seg_stat_obj dhsso,
+         dba_hist_snapshot dhs
+  WHERE dhs.snap_id = dhss.snap_id
+    AND dhs.instance_number = dhss.instance_number
+    AND dhss.obj# = dhsso.obj#
+    AND dhss.dataobj# = dhsso.dataobj#
+    AND begin_interval_time BETWEEN to_date('2015-08-09 12','YYYY_MM_DD HH24')
+    AND to_date('2015-08-11 10','YYYY_MM_DD HH24')
+  GROUP BY to_char(begin_interval_time,'YYYY_MM_DD HH24:MI'),
+  dhsso.object_name order by 3 desc;
+
+# to know archives generated in a month day wise
+select to_char(first_time,’DD-MON’),count(*) from v$log_history
+where to_char(first_time,’MON’)=’DEC’
+group by to_char(first_time,’DD-MON’);
+
+# to know archives generated in a day
+select to_char(first_time,’DD-MON’),count(*) from v$log_history
+where to_char(first_time,’DD’)=10
+group by to_char(first_time,’DD-MON’);
+
+# to know archives generated in a day including time
+select to_char(first_time,’DD-MON:hh24:mi:ss’) from v$log_history
+where to_char(first_time,’DD’)=10;
+
+# to know archives generated on specific date in hourly basis
+select to_char(first_time,’hh24'),count(*) from v$log_history
+where to_char(first_time,’dd-mm-yy’) in(’21-05-08')
+group by to_char(first_time,’hh24');
+

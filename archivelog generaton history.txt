@@ -1,0 +1,92 @@
+
+To start the archiving after the instance is started issue the following statement
+ALTER SYSTEM ARCHIVE LOG START;
+You can optionally include the archiving destination.
+
+How can I disable the archiving for my database??
+
+To disable the automatic archiving, set this parameter in the initialization parameter file:
+
+LOG_ARCHIVE_START=FALSE
+
+To automatic archiving after instance startup:
+
+ALTER SYSTEM ARCHIVE LOG STOP;
+
+To perform manual archiving:
+
+ALTER SYSTEM ARCHIVE LOG ALL;
+
+
+Archive log generation on hourly basis
+==============================
+
+ select to_char(first_time,'DD-MON'),count(*) from v$log_history where to_char(first_time,'MON')='&MONTH' group by to_char(first_time,'DD-MON') order by 1;
+
+
+select to_char(FIRST_TIME,'YYYYMMDD HH24'), count(1), round(sum(BLOCKS*BLOCK_SIZE/1024/1024)) size_mb
+from v$archived_log
+where FIRST_TIME > sysdate -1
+group by to_char(FIRST_TIME,'YYYYMMDD HH24')
+order by 1; insc;
+
+select to_char(FIRST_TIME,'YYYYMMDD'),count(1), round(sum(BLOCKS*BLOCK_SIZE/1024/1024/1024)) size_GB
+from gv$archived_log
+where FIRST_TIME > sysdate -45
+group by to_char(FIRST_TIME,'YYYYMMDD')
+order by 1 desc;
+
+==============================================================================================================
+select to_char(FIRST_TIME,'DD-MON'), count(1), round(sum(BLOCKS*BLOCK_SIZE/1024/1024)) size_mb
+from v$archived_log
+where to_char(first_time,'MON')='&MONTH'
+group by to_char(FIRST_TIME,'DD-MON')
+order by 1;
+
+
+SELECT to_char(begin_interval_time,'YYYY_MM_DD HH24:MI') snap_time,
+dhsso.object_name,sum(db_block_changes_delta) as maxchanges
+FROM dba_hist_seg_stat dhss,dba_hist_seg_stat_obj dhsso,
+dba_hist_snapshot WHERE dhs.snap_id = dhss.snap_id
+AND dhs.instance_number = dhss.instance_number
+AND dhss.obj# = dhsso.obj# AND dhss.dataobj# = dhsso.dataobj#
+AND begin_interval_time BETWEEN to_date('2015-08-09 00:00:00','YYYY-MM-DD HH24:MI:SS')
+AND to_date('2015-08-11 10:00:00','YYYY-MM-DD HH24:MI:SS')
+GROUP BY to_char(begin_interval_time,'YYYY-MM-DD HH24:MI:SS'),dhsso.object_name 
+order by maxchanges asc;
+
+SELECT to_char(begin_interval_time,'YYYY_MM_DD HH24:MI') snap_time,
+        dhsso.object_name,
+        sum(db_block_changes_delta)
+  FROM dba_hist_seg_stat dhss,
+         dba_hist_seg_stat_obj dhsso,
+         dba_hist_snapshot dhs
+  WHERE dhs.snap_id = dhss.snap_id
+    AND dhs.instance_number = dhss.instance_number
+    AND dhss.obj# = dhsso.obj#
+    AND dhss.dataobj# = dhsso.dataobj#
+    AND begin_interval_time BETWEEN to_date('2015-08-09 12','YYYY_MM_DD HH24')
+    AND to_date('2015-08-11 10','YYYY_MM_DD HH24')
+  GROUP BY to_char(begin_interval_time,'YYYY_MM_DD HH24:MI'),
+  dhsso.object_name order by 3 desc;
+
+# to know archives generated in a month day wise
+select to_char(first_time,’DD-MON’),count(*) from v$log_history
+where to_char(first_time,’MON’)=’DEC’
+group by to_char(first_time,’DD-MON’);
+
+# to know archives generated in a day
+select to_char(first_time,’DD-MON’),count(*) from v$log_history
+where to_char(first_time,’DD’)=10
+group by to_char(first_time,’DD-MON’);
+
+# to know archives generated in a day including time
+select to_char(first_time,’DD-MON:hh24:mi:ss’) from v$log_history
+where to_char(first_time,’DD’)=10;
+
+# to know archives generated on specific date in hourly basis
+select to_char(first_time,’hh24'),count(*) from v$log_history
+where to_char(first_time,’dd-mm-yy’) in(’21-05-08')
+group by to_char(first_time,’hh24');
+
+
