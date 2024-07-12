@@ -1,0 +1,15 @@
+-- given an object, explain plan for all afffected cursors
+undef obj_name
+col sql_text format a100
+select 	 distinct
+	 s.sql_id
+	,s.child_number
+	,s.plan_hash_value
+	,s.last_active_time
+	,substr(s.sql_text,1,100) sql_text
+from	 v$object_dependency od
+	,v$sql s
+where 	 od.to_name 	= upper('&&obj_name')
+and 	 s.hash_value 	= od.from_hash
+and	 s.object_status= 'VALID'
+;

@@ -1,0 +1,11 @@
+exec dbms_stats.set_table_stats(ownname=>'BOOKER',tabname=>'WHSE_DEMANDS',numrows=>476940,numblks=>14188,avgrlen=>99);
+exec dbms_stats.set_index_stats(ownname=>'BOOKER',indname=>'I_WD_TYPE_ID_CONS_ID',numrows=>476016,numlblks=>1318,numdist=>466134,avglblk=>1,avgdblk=>1,clstfct=>8531,indlevel=>2);
+exec dbms_stats.set_index_stats(ownname=>'BOOKER',indname=>'I_WD_STATUS',numrows=>394008,numlblks=>1152,numdist=>3,avglblk=>384,avgdblk=>3738,clstfct=>11216,indlevel=>2);
+exec dbms_stats.set_index_stats(ownname=>'BOOKER',indname=>'I_WD_DEMAND_CONSUMER_ID',numrows=>476016,numlblks=>1141,numdist=>438628,avglblk=>1,avgdblk=>1,clstfct=>8347,indlevel=>2);
+exec dbms_stats.set_index_stats(ownname=>'BOOKER',indname=>'I_WD_LAST_UPDATED',numrows=>484383,numlblks=>4548,numdist=>88905,avglblk=>1,avgdblk=>4,clstfct=>378148,indlevel=>2);
+exec dbms_stats.set_index_stats(ownname=>'BOOKER',indname=>'PK_WHSE_DEMANDS',numrows=>476016,numlblks=>1082,numdist=>476016,avglblk=>1,avgdblk=>1,clstfct=>8267,indlevel=>2);
+exec dbms_stats.set_column_stats(ownname=>'BOOKER',tabname=>'WHSE_DEMANDS',colname=>'DEMAND_CONSUMER_ID',distcnt=>476940,density=>.00000209669979452342,nullcnt=>0,avgclen=>8);
+exec dbms_stats.set_column_stats(ownname=>'BOOKER',tabname=>'WHSE_DEMANDS',colname=>'DEMAND_CONSUMER_TYPE_ID',distcnt=>1,density=>.00000104834989726171,nullcnt=>0,avgclen=>3);
+exec dbms_stats.set_column_stats(ownname=>'BOOKER',tabname=>'WHSE_DEMANDS',colname=>'LAST_UPDATED',distcnt=>88905,density=>.0000112479613070131,nullcnt=>0,avgclen=>8);
+exec dbms_stats.set_column_stats(ownname=>'BOOKER',tabname=>'WHSE_DEMANDS',colname=>'STATUS',distcnt=>3,density=>.00000104834989726171,nullcnt=>0,avgclen=>10);
+exec dbms_stats.set_column_stats(ownname=>'BOOKER',tabname=>'WHSE_DEMANDS',colname=>'WHSE_DEMAND_ID',distcnt=>476940,density=>.00000209669979452342,nullcnt=>0,avgclen=>8);
