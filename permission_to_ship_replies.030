@@ -1,0 +1,70 @@
+set echo on feed on
+-- touch PTSR via booker.ptsr_oshipid
+-- so updates can propagate to the snapshot
+
+SET SERVEROUTPUT ON SIZE 1000000
+SET ECHO ON
+
+DECLARE
+
+commit_sleep 	number    	:=1;    -- time in secs
+commit_size 	number     	:=5000;
+run_size    	number     	:=150000;
+rows_to_update 	NUMBER   	:=0;
+updated_rows 	NUMBER     	:=0;
+tot_updated_rows NUMBER 	:=0;
+
+cursor touch_ids_cursor is
+select ORDERING_SHIPMENT_ID
+from booker.ptsr_oshipid
+where touch_flag = 'N'
+and rownum <= run_size
+;
+
+BEGIN
+   --
+   --  update condition goes here --
+   --
+   select count(*) into rows_to_update
+   from booker.ptsr_oshipid
+   where touch_flag = 'N'
+   and rownum <= run_size;
+
+   dbms_output.put_line('Rows to update : '||rows_to_update);
+
+   --
+   -- touch (update) PTSR for matching ordering_shipping_ids
+   --
+
+   FOR urec in touch_ids_cursor LOOP
+      update PERMISSION_TO_SHIP_REPLIES
+      set CREATED_BY=CREATED_BY
+      where ORDERING_SHIPMENT_ID = urec.ORDERING_SHIPMENT_ID;
+
+      IF (SQL%ROWCOUNT = 0) THEN
+	 null;
+      ELSE
+	 update booker.ptsr_oshipid
+	 set touch_flag = 'Y'
+	 where ORDERING_SHIPMENT_ID = urec.ORDERING_SHIPMENT_ID;
+         commit;
+         updated_rows := updated_rows+1;
+         tot_updated_rows := tot_updated_rows+1;
+      END IF;
+
+      IF updated_rows >= commit_size THEN
+         dbms_output.put_line('Updated : '||updated_rows||' so far');
+         dbms_output.put_line('  sleeping  '||commit_sleep||' secs after commit ...');
+         dbms_lock.sleep(commit_sleep);
+         updated_rows :=0;
+      END IF;
+
+   END LOOP;  -- for loop
+   dbms_output.put_line('TOTAL updated : '||tot_updated_rows);
+
+   EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+      dbms_output.put_line('All rows have been updated');
+      commit;
+END;
+/

@@ -1,0 +1,8 @@
+set linesi 190
+set pagesi 100
+col owner format a10
+col table_name format a30
+col PARTITION_NAME_PREFIX format a30
+col KEEP_PART_VALIDATION_CLAUSE format a25
+col ROW_MOVEMENT_NEW_KEY_VALUE format a30
+select OWNER,TABLE_NAME,PARTITION_NAME_PREFIX,ROLLING_PARTITION_TYPE,RETAIN_NUM_PARTITIONS,PRE_CREATE_NUM_PARTITIONS,KEEP_PART_VALIDATION_CLAUSE,ROW_MOVEMENT_NEW_KEY_VALUE from admin.db_rolling_partitions order by owner,table_name;

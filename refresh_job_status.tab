@@ -1,0 +1,12 @@
+create table admin.refresh_job_status
+	(sid		number
+	,spid		varchar2(24)
+	,program	varchar2(48)
+	,mvname		varchar2(30)
+	,refrstate	number
+	,isrt		number
+	,updt		number
+	,dele		number)
+tablespace administrator
+;
+create or replace public synonym refresh_job_status for admin.refresh_job_status;

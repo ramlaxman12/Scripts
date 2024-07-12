@@ -1,0 +1,25 @@
+set echo off feed off head off
+truncate table admin.refresh_job_status;
+insert into refresh_job_status
+SELECT   se.sid
+        ,pr.spid
+	,pr.program
+        ,currmvname_knstmvr
+        ,groupstate_knstmvr
+        ,total_inserts_knstmvr
+        ,total_updates_knstmvr
+        ,total_deletes_knstmvr 
+from     x$knstmvr              X
+        ,v$session              se
+        ,v$process              pr
+        ,dba_jobs_running       j
+WHERE    type_knst      = 6
+and      se.paddr       = pr.addr
+and      x.SID_KNST     = se.sid
+and      x.SID_KNST     = j.sid
+and      se.sid         = j.sid
+and      x.SERIAL_KNST  = se.serial#
+and     (sysdate - se.logon_time)*(24*60)  > 10
+;
+commit;
+--select * from refresh_job_status;
