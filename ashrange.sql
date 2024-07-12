@@ -1,0 +1,1 @@
+select inst_id,min(sample_time)||' ---> '||max(sample_time) RANGE from gv$active_session_history group by inst_id;

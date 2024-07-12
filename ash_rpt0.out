@@ -1,0 +1,281 @@
+ASH Report For DCLEJ1/dclej1
+
+DB Name         DB Id    Instance     Inst Num Release     RAC Host
+------------ ----------- ------------ -------- ----------- --- ------------
+DCLEJ1        2300526434 dclej1              1 10.2.0.4.0  NO  db-dclej1-b-
+
+CPUs           SGA Size       Buffer Cache        Shared Pool    ASH Buffer Size
+---- ------------------ ------------------ ------------------ ------------------
+  24     27,360M (100%)    24,368M (89.1%)      2,213M (8.1%)       40.5M (0.1%)
+
+
+          Analysis Begin Time:   16-Dec-10 08:55:00
+            Analysis End Time:   16-Dec-10 09:05:00
+                 Elapsed Time:        10.0 (mins)
+                 Sample Count:       8,780
+      Average Active Sessions:      146.33
+  Avg. Active Session per CPU:        6.10
+                Report Target:   None specified
+
+Top User Events                DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+                                                               Avg Active
+Event                               Event Class     % Activity   Sessions
+----------------------------------- --------------- ---------- ----------
+db file sequential read             User I/O             52.98      77.53
+log file sync                       Commit               28.18      41.23
+CPU + Wait for CPU                  CPU                   5.17       7.57
+enq: TX - row lock contention       Application           4.02       5.88
+buffer busy waits                   Concurrency           1.61       2.35
+          -------------------------------------------------------------
+
+Top Background Events          DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+                                                               Avg Active
+Event                               Event Class     % Activity   Sessions
+----------------------------------- --------------- ---------- ----------
+db file parallel write              System I/O            2.04       2.98
+          -------------------------------------------------------------
+
+Top Event P1/P2/P3 Values      DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+Event                          % Event  P1 Value, P2 Value, P3 Value % Activity
+------------------------------ ------- ----------------------------- ----------
+Parameter 1                Parameter 2                Parameter 3
+-------------------------- -------------------------- --------------------------
+db file sequential read          53.04             "428","94370","1"       0.02
+file#                      block#                     blocks
+
+log file sync                    28.18               "23864","0","0"       0.66
+buffer#                    NOT DEFINED                NOT DEFINED
+
+enq: TX - row lock contention     4.02 "1415053318","3670058","20396       0.44
+name|mode                  usn<<16 | slot             sequence
+
+db file parallel write            2.04          "1","0","2147483647"       1.50
+requests                   interrupt                  timeout
+
+buffer busy waits                 1.61            "140","372388","1"       0.18
+file#                      block#                     class#
+
+          -------------------------------------------------------------
+
+Top Service/Module             DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+Service        Module                   % Activity Action               % Action
+-------------- ------------------------ ---------- ------------------ ----------
+SYS$USERS      FCAutoCheckWeightService      15.55 UNNAMED                 15.55
+               FCShipmentCompletionServ       8.94 UNNAMED                  8.94
+               FCPickingDispatcherServi       5.75 UNNAMED                  5.75
+               ReceiveUI                      5.26 UNNAMED                  5.26
+               bintoolhistory                 5.00 perl                     5.00
+          -------------------------------------------------------------
+
+Top Client IDs                 DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+                                                              Avg Active
+Client ID                                          % Activity   Sessions
+-------------------------------------------------- ---------- ----------
+User            Program                           Service
+--------------- --------------------------------- --------------------
+dc-owl@fc-ship-lej1-101.lej1.amazon.com                  5.27       7.72
+OLTP_USER                                         SYS$USERS
+
+dc-owl@fc-ship-lej1-104.lej1.amazon.com                  5.16       7.55
+OLTP_USER                                         SYS$USERS
+
+dc-owl@fc-ship-lej1-103.lej1.amazon.com                  5.11       7.48
+OLTP_USER                                         SYS$USERS
+
+dc-owl@fc-fcapi-lej1-104.lej1.amazon.com                 1.58       2.32
+OLTP_USER       FCShipmentCompletionService@fc-fc SYS$USERS
+
+dc-owl@fc-fcapi-lej1-109.lej1.amazon.com                 1.56       2.28
+OLTP_USER       FCShipmentCompletionService@fc-fc SYS$USERS
+
+          -------------------------------------------------------------
+
+Top SQL Command Types          DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+-> 'Distinct SQLIDs' is the count of the distinct number of SQLIDs
+      with the given SQL Command Type found over all the ASH samples
+      in the analysis period
+
+                                           Distinct            Avg Active
+SQL Command Type                             SQLIDs % Activity   Sessions
+---------------------------------------- ---------- ---------- ----------
+SELECT                                          355      47.72      69.83
+INSERT                                           94       7.85      11.48
+UPDATE                                           76       7.46      10.92
+DELETE                                           38       3.42       5.00
+PL/SQL EXECUTE                                   18       1.09       1.60
+          -------------------------------------------------------------
+
+Top SQL Statements            DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+       SQL ID    Planhash % Activity Event                             % Event
+------------- ----------- ---------- ------------------------------ ----------
+80jbrkxpk6hrq  2832736553       9.08 db file sequential read              9.00
+select acwobjectm0_.acw_object_measurement_id as acw1_2_, acwobjectm0_.hash_valu
+e as hash2_2_, acwobjectm0_.object_id as object3_2_, acwobjectm0_.object_type as
+ object4_2_, acwobjectm0_.object_subtype as object5_2_, acwobjectm0_.measurement
+_type as measurem6_2_, acwobjectm0_.measurement_value as measurem7_2_, acwobject
+
+8b8d3ns7vh95u  3371072456       4.20 db file sequential read              4.09
+SELECT isbn, quantity, operation, old_bin_id, new_bin_id,
+ distributor_order_id, source, person, entry_date,
+ old_owner, new_owner FROM binedit_entries
+ WHERE isbn = :p1 AND entry_
+
+38fz16drpvh84  3271190693       3.11 enq: TX - row lock contention        3.11
+select css.rowid, css.carrier_shipment_id, css.warehouse_id, css.amazon_represen
+tative, css.checkin_pallet_count, css.checkin_carton_count, css.checkin_start_ti
+me, css.checkin_end_time, css.checkin_start_date_utc, css.checkin_end_date_utc,
+css.receive_pallet_count, css.receive_carton_count, css.receive_start_time, css.
+
+2mjbak1yzyvf2   538674972       1.00 db file sequential read              1.00
+select t1.subopen open, t2.suberror err from( select count(*) subopen from DC_IN
+V_MQ_MESSAGES_2 where service_name = :service and queue_name = :queue and realm_
+name = :realm and message_status = :open and next_redrive_date_utc is not null )
+ t1, ( select count(*) suberror from DC_INV_MQ_MESSAGES_2 where service_name = :
+
+          -------------------------------------------------------------
+
+Top SQL using literals         DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+                       # of Sampled
+  Plan Hash % Activity SQL Versions
+----------- ---------- ------------
+Example SQL 1
+--------------------
+Example SQL 2
+--------------------
+ 3155056359       1.16          102
+000fdwrt96unm
+update pending_customer_shipments set voice=:f000, base_currency_code=:f001, gif
+twrap_charge_tax=:f002, ship_charge_tax=:f003, condition=:f004, giftwrap_charge=
+:f005, shipment_request_id=:f006, promised_arrival_date=:f007, marketplace_id=:f
+008, promised_ship_date=:f009, zip=:f010, customer_ship_option=:f011, gift_optio
+
+gzvacjq02phku
+update pending_customer_shipments set voice=:f000, base_currency_code=:f001, con
+dition=:f002, shipment_request_id=:f003, promised_arrival_date=:f004, marketplac
+e_id=:f005, promised_ship_date=:f006, zip=:f007, customer_ship_option=:f008, gif
+t_option=:f009, gst_tax_rate_class=:f010, billing_city=:f011, email=:f012, count
+
+          -------------------------------------------------------------
+
+Top PL/SQL Procedures          DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+-> 'PL/SQL entry subprogram' represents the application's top-level
+      entry-point(procedure, function, trigger, package initialization
+      or RPC call) into PL/SQL.
+-> 'PL/SQL current subprogram' is the pl/sql subprogram being executed
+      at the point of sampling . If the value is 'SQL', it represents
+      the percentage of time spent executing SQL for the particular
+      plsql entry subprogram
+
+PLSQL Entry Subprogram                                            % Activity
+----------------------------------------------------------------- ----------
+PLSQL Current Subprogram                                           % Current
+----------------------------------------------------------------- ----------
+ADMIN.FC_MVIEW.REFRESH_GROUP                                            3.00
+   SQL                                                                  2.03
+BOOKER.PCS_OPE_CONDITION                                                1.07
+   SQL                                                                  1.05
+          -------------------------------------------------------------
+
+Top Sessions                  DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top Blocking Sessions          DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+-> Blocking session activity percentages are calculated with respect to
+      waits on enqueues, latches and "buffer busy" only
+-> '% Activity' represents the load on the database caused by
+      a particular blocking session
+-> '# Samples Active' shows the number of ASH samples in which the
+      blocking session was found active.
+-> 'XIDs' shows the number of distinct transaction IDs sampled in ASH
+      when the blocking session was found active.
+
+   Blocking Sid % Activity Event Caused                      % Event
+--------------- ---------- ------------------------------ ----------
+User                 Program                          # Samples Active     XIDs
+-------------------- ------------------------------ ------------------ --------
+     7192,    1      28.18 log file sync                       28.18
+SYS                  oracle@db-dcle...on.com (LGWR)       48/60 [ 80%]        0
+
+          -------------------------------------------------------------
+
+Top Sessions running PQs      DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Top DB Objects                 DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+-> With respect to Application, Cluster, User I/O and buffer busy waits only.
+
+      Object ID % Activity Event                             % Event
+--------------- ---------- ------------------------------ ----------
+Object Name (Type)                                    Tablespace
+----------------------------------------------------- -------------------------
+           9829       4.84 db file sequential read              4.81
+BOOKER.BINEDIT_ENTRIES (TABLE)                        DC_OPS
+
+           9902       3.11 enq: TX - row lock contention        3.11
+BOOKER.CARRIER_SHIPMENT_STATUS (TABLE)                INBOUND
+
+          10134       1.00 db file sequential read              1.00
+BOOKER.I_DC_INV_MQ_MESSAGES_2_DATE (INDEX)            REPLICATION_IDX
+
+          -------------------------------------------------------------
+
+Top DB Files                   DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+-> With respect to Cluster and User I/O events only.
+
+        File ID % Activity Event                             % Event
+--------------- ---------- ------------------------------ ----------
+File Name                                             Tablespace
+----------------------------------------------------- -------------------------
+            393       2.80 db file sequential read              2.77
+/fs-e01-a/databases/dclej1/acw-20100708184509.dbf     ACW
+
+            351       2.77 db file sequential read              2.76
+/fs-e01-a/databases/dclej1/acw-20100330071515.dbf     ACW
+
+            471       1.25 db file sequential read              1.25
+/fs-c01-a/databases/dclej1/acw-20101028073036.dbf     ACW
+
+            283       1.17 db file sequential read              1.17
+/fs-b01-a/databases/dclej1/acw-20091030023008.dbf     ACW
+
+            146       1.15 db file sequential read              1.09
+/fs-e01-a/databases/dclej1/outbound_idx-10.dbf        OUTBOUND_IDX
+
+          -------------------------------------------------------------
+
+Top Latches                    DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+
+                  No data exists for this section of the report.
+          -------------------------------------------------------------
+
+Activity Over Time            DB/Inst: DCLEJ1/dclej1  (Dec 16 08:55 to 09:05)
+-> Analysis period is divided into smaller time slots
+-> Top 3 events are reported in each of those slots
+-> 'Slot Count' shows the number of ASH samples in that slot
+-> 'Event Count' shows the number of ASH samples waiting for
+   that event in that slot
+-> '% Event' is 'Event Count' over all ASH samples in the analysis period
+
+                         Slot                                   Event
+Slot Time (Duration)    Count Event                             Count % Event
+-------------------- -------- ------------------------------ -------- -------
+08:55:00   (5.0 min)    3,770 db file sequential read           2,198   25.03
+                              log file sync                       949   10.81
+                              CPU + Wait for CPU                  216    2.46
+09:00:00   (5.0 min)    5,010 db file sequential read           2,459   28.01
+                              log file sync                     1,525   17.37
+                              enq: TX - row lock contention       294    3.35
+          -------------------------------------------------------------
+
+End of Report
