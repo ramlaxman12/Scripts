@@ -1,0 +1,28 @@
+SET SERVEROUTPUT ON
+declare
+v_value varchar2(100);
+begin
+v_value := DBMS_STATS.GET_PREFS ( PNAME =>'STALE_PERCENT', OWNNAME =>'BOOKER', TABNAME =>'ASIN_ENCUMBRANCES');
+dbms_output.put_line('STALE_PERCENT = '||v_value);
+v_value := DBMS_STATS.GET_PREFS ( PNAME =>'ESTIMATE_PERCENT', OWNNAME =>'BOOKER', TABNAME =>'ASIN_ENCUMBRANCES');
+dbms_output.put_line('ESTIMATE_PERCENT = '||v_value);
+v_value := DBMS_STATS.GET_PREFS ( PNAME =>'NO_INVALIDATE', OWNNAME =>'BOOKER', TABNAME =>'ASIN_ENCUMBRANCES');
+dbms_output.put_line('NO_INVALIDATE = '||v_value);
+v_value := DBMS_STATS.GET_PREFS ( PNAME =>'METHOD_OPT', OWNNAME =>'BOOKER', TABNAME =>'ASIN_ENCUMBRANCES');
+dbms_output.put_line('METHOD_OPT = '||v_value);
+v_value := DBMS_STATS.GET_PREFS ( PNAME =>'CASCADE', OWNNAME =>'BOOKER', TABNAME =>'ASIN_ENCUMBRANCES');
+dbms_output.put_line('CASCADE = '||v_value);
+v_value := DBMS_STATS.GET_PREFS ( PNAME =>'DEGREE', OWNNAME =>'BOOKER', TABNAME =>'ASIN_ENCUMBRANCES');
+dbms_output.put_line('DEGREE = '||v_value);
+end;
+/
+--Regarding the GET_PREFS function, consider the following:
+--PNAME parameter indicates the preference name and can take one of the following values: 
+--CASCADE, DEGREE, ESTIMATE_PERCENT, METHOD_OPT, NO_INVALIDATE, GRANULARITY, PUBLISH, INCREMENTAL and STALE_PERCENT.
+--If the OWNNAME and TABNAME are provided and a preference has been entered for the table, the function returns the preference as specified for the table. 
+--In all other cases it returns the global preference if it has been specified, otherwise the default value is returned.
+--SET_GLOBAL_PREFS, SET_DATABASE_PREFS, SET_SCHEMA_PREFS, SET_TABLE_PREFS procedures are used 
+--to set the statistics preferences for the global, database, schema or table levels respectively. Following is an example:
+--begin
+--DBMS_STATS.SET_GLOBAL_PREFS ( PNAME =>'ESTIMATE_PERCENT', PVALUE =>'75');
+--end;

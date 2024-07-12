@@ -1,0 +1,1 @@
+select a.name,sum(b.value) from v$statname a, v$sesstat b where a.statistic#=b.statistic# and a.name like 'leaf%splits' and b.sid in (select distinct sid from v$session where username=upper('&USERNAME'))   group by a.name;

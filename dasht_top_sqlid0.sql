@@ -1,0 +1,37 @@
+@plusenv
+col sql_id      format a13
+col module      format a40 trunc
+col cpu         format 999,999  head '*CPU*'
+col wait        format 999,999
+col io          format 999,999
+col tot         format 9,999,999        head 'TOT'
+col pctcpu      format 999.9    head 'CPU%'
+col pctio       format 999.9    head 'IO%'
+select   sql_id
+        ,module
+        ,cpu
+        ,100*ratio_to_report (cpu) over () pctcpu
+        ,wait
+        ,io
+        ,100*ratio_to_report (io) over () pctio
+        ,tot
+from
+(
+select   dash.sql_id                                                                             sql_id
+        ,nvl(dash.module,'['||substr(dash.machine,1,instr(dash.machine,'amazon')-2)||']')          module
+        ,sum(decode(dash.session_state,'ON CPU',1,0))                                            cpu
+        ,sum(decode(dash.session_state,'WAITING',1,0)) - sum(decode(dash.session_state,'WAITING',decode(en.wait_class, 'User I/O',1,0),0))    wait
+        ,sum(decode(dash.session_state,'WAITING', decode(en.wait_class, 'User I/O',1,0),0))      io
+        ,sum(decode(dash.session_state,'ON CPU',1,1))                                            tot
+from     dba_hist_active_Sess_history       dash
+        ,v$event_name                   en
+where    dash.sql_id             is not NULL
+and      dash.is_sqlid_current   = 'Y'
+and      dash.event_id             = en.event# (+)
+and      sample_time between timestamp'&&t1' and timestamp'&&t2'
+group by sql_id
+        ,nvl(dash.module,'['||substr(dash.machine,1,instr(dash.machine,'amazon')-2)||']')
+order by sum(decode(session_state,'ON CPU',1,0))   desc
+)
+where rownum <=10
+;
